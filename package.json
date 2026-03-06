@@ -1,0 +1,28 @@
+{
+  "name": "syswatch",
+  "version": "1.0.0",
+  "description": "Linux system monitor & learning dashboard — HTTP/HTTPS, journal logs, services, processes",
+  "main": "src/server.js",
+  "bin": {
+    "syswatch": "./bin/syswatch.js"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node src/server.js --dev",
+    "setup-https": "node bin/gen-cert.js"
+  },
+  "keywords": ["linux", "monitor", "systemd", "journalctl", "sysadmin", "dashboard"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "bcrypt": "^5.1.1",
+    "jsonwebtoken": "^9.0.2",
+    "cookie-parser": "^1.4.6",
+    "express-rate-limit": "^7.1.5"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

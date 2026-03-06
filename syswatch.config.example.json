@@ -1,0 +1,19 @@
+{
+  "_comment": "SysWatch configuration — rename to syswatch.config.json and edit",
+
+  "host": "127.0.0.1",
+  "port": 8080,
+
+  "https": false,
+  "httpsPort": 8443,
+
+  "auth": true,
+  "passwordHash": "",
+  "sessionHours": 8,
+
+  "learnMode": true,
+  "maxLogLines": 200,
+
+  "certPath": "./certs/cert.pem",
+  "keyPath":  "./certs/key.pem"
+}

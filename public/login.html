@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SysWatch — Login</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  :root{--bg:#080a0d;--surface:#0d1117;--border:#21262d;--green:#3fb950;--text:#c9d1d9;--muted:#6e7681;--red:#f85149}
+  body{background:var(--bg);color:var(--text);font-family:'IBM Plex Mono',monospace;min-height:100vh;display:flex;align-items:center;justify-content:center}
+  .box{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:40px;width:360px}
+  .logo{font-family:'IBM Plex Sans',sans-serif;font-weight:700;font-size:22px;color:#fff;display:flex;align-items:center;gap:10px;margin-bottom:8px}
+  .logo-mark{width:32px;height:32px;background:var(--green);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:16px;color:#000;font-weight:700}
+  .sub{color:var(--muted);font-size:12px;margin-bottom:32px}
+  label{display:block;font-size:11px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.08em}
+  input{width:100%;background:#0a0d11;border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:6px;font-family:'IBM Plex Mono',monospace;font-size:14px;outline:none;transition:border-color .2s;margin-bottom:20px}
+  input:focus{border-color:var(--green)}
+  button{width:100%;background:var(--green);color:#000;border:none;padding:11px;border-radius:6px;font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;cursor:pointer;transition:opacity .2s}
+  button:hover{opacity:.85}
+  .err{color:var(--red);font-size:12px;margin-top:12px;display:none}
+  .note{color:var(--muted);font-size:11px;margin-top:20px;line-height:1.6;border-top:1px solid var(--border);padding-top:16px}
+</style>
+</head>
+<body>
+<div class="box">
+  <div class="logo"><div class="logo-mark">$_</div>SysWatch</div>
+  <div class="sub">Linux Monitor &amp; Learning Dashboard</div>
+  <label>Password</label>
+  <input type="password" id="pw" placeholder="Enter password..." autofocus
+         onkeydown="if(event.key==='Enter')login()">
+  <button onclick="login()">Sign In →</button>
+  <div class="err" id="err">Invalid password. Try again.</div>
+  <div class="note" id="note">
+    First time? Enter any password — it becomes your login for this session.<br>
+    To persist it, add the bcrypt hash to <code>syswatch.config.json</code>.
+  </div>
+</div>
+<script>
+async function login() {
+  const pw = document.getElementById('pw').value;
+  if (!pw) return;
+  const res = await fetch('/auth/login', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    credentials:'include', body: JSON.stringify({ password: pw })
+  });
+  if (res.ok) { window.location.href = '/'; }
+  else {
+    document.getElementById('err').style.display='block';
+    document.getElementById('pw').value='';
+    document.getElementById('pw').focus();
+  }
+}
+// check if auth is even enabled
+fetch('/auth/status').then(r=>r.json()).then(d=>{
+  if (!d.authEnabled) window.location.href = '/';
+  if (d.passwordHash === null)
+    document.getElementById('note').style.display='block';
+});
+</script>
+</body>
+</html>

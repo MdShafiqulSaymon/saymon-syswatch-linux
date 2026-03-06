@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>SysWatch</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#080a0d;--surface:#0d1117;--surface2:#161b22;--surface3:#1c2330;
+  --border:#21262d;--border2:#30363d;
+  --green:#3fb950;--blue:#58a6ff;--yellow:#e3b341;--red:#f85149;
+  --purple:#bc8cff;--cyan:#39d0d8;--orange:#f0883e;
+  --text:#c9d1d9;--muted:#6e7681;
+  --mono:'IBM Plex Mono',monospace;--sans:'IBM Plex Sans',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--text);font-family:var(--mono);font-size:13px;display:flex;flex-direction:column}
+
+/* TOPBAR */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:48px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;z-index:50}
+.logo{font-family:var(--sans);font-weight:700;font-size:17px;color:#fff;display:flex;align-items:center;gap:10px}
+.logo-mark{width:26px;height:26px;background:var(--green);border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:13px;color:#000;font-weight:700}
+.topbar-right{display:flex;align-items:center;gap:14px}
+.host-chip{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted)}
+.pulse{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.topbar-btn{display:flex;align-items:center;gap:6px;padding:5px 12px;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;font-family:var(--mono);font-size:11px;transition:all .2s}
+.topbar-btn:hover{border-color:var(--border2);color:var(--text)}
+.topbar-btn.active{background:rgba(188,140,255,.1);border-color:rgba(188,140,255,.35);color:var(--purple)}
+.topbar-btn.logout{color:var(--muted)}
+.topbar-btn.logout:hover{border-color:var(--red);color:var(--red)}
+
+/* LAYOUT */
+.app{display:flex;flex:1;overflow:hidden}
+
+/* SIDEBAR */
+.sidebar{width:210px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto}
+.nav-group{padding:16px 0 8px}
+.nav-group-label{padding:0 16px 6px;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.nav-item{display:flex;align-items:center;gap:9px;padding:8px 16px;cursor:pointer;color:var(--muted);font-size:12px;border-left:2px solid transparent;transition:all .15s}
+.nav-item:hover{color:var(--text);background:var(--surface2)}
+.nav-item.active{color:var(--green);border-left-color:var(--green);background:rgba(63,185,80,.06)}
+.nav-icon{font-size:13px;width:16px;text-align:center}
+.sdot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.dg{background:var(--green)}.dy{background:var(--yellow)}.dr{background:var(--red)}
+
+/* CONTENT */
+.content{flex:1;overflow:hidden;display:flex;flex-direction:column}
+.page{display:none;flex:1;overflow:hidden;flex-direction:column}
+.page.active{display:flex}
+.split{display:flex;flex:1;overflow:hidden}
+.main-panel{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:16px}
+
+/* LEARN PANEL */
+.learn-panel{width:370px;flex-shrink:0;border-left:1px solid var(--border);background:var(--surface);overflow-y:auto;transition:width .3s,opacity .3s}
+.learn-panel.off{width:0;opacity:0;overflow:hidden}
+.lp-inner{padding:20px;min-width:370px}
+.ls-title{font-family:var(--sans);font-weight:600;font-size:13px;color:var(--purple);margin-bottom:12px;display:flex;align-items:center;gap:8px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+.ls{margin-bottom:22px}
+.cmd-block{background:#0a0d11;border:1px solid var(--border2);border-radius:6px;margin-bottom:11px;overflow:hidden}
+.cmd-hdr{display:flex;align-items:center;justify-content:space-between;padding:7px 13px;background:var(--surface2);border-bottom:1px solid var(--border)}
+.cmd-lbl{font-size:10px;color:var(--muted)}
+.cmd-copy{font-size:10px;color:var(--blue);cursor:pointer;padding:2px 8px;border:1px solid rgba(88,166,255,.3);border-radius:3px;background:rgba(88,166,255,.05);transition:all .15s}
+.cmd-copy:hover{background:rgba(88,166,255,.15)}
+.cmd-code{padding:10px 13px;font-size:12px;color:var(--cyan);line-height:1.6;word-break:break-all}
+.cmd-expl{padding:9px 13px;background:rgba(188,140,255,.04);border-top:1px solid var(--border);font-size:11.5px;color:var(--text);line-height:1.7}
+.flags{padding:9px 13px;border-top:1px solid var(--border)}
+.flag{display:flex;gap:10px;align-items:flex-start;margin-bottom:5px;font-size:11px}
+.fn{color:var(--yellow);flex-shrink:0;min-width:100px}
+.fd{color:var(--muted);line-height:1.5}
+.note{background:rgba(63,185,80,.06);border:1px solid rgba(63,185,80,.2);border-radius:6px;padding:10px 13px;font-size:11.5px;color:var(--text);line-height:1.7;margin-top:10px}
+.note strong{color:var(--green)}
+.node-block{background:#0a1628;border:1px solid rgba(88,166,255,.2);border-radius:6px;overflow:hidden;margin-bottom:11px}
+.node-hdr{display:flex;align-items:center;gap:8px;padding:7px 13px;background:rgba(88,166,255,.06);border-bottom:1px solid rgba(88,166,255,.15);font-size:11px;color:var(--blue)}
+.node-code{padding:11px 13px;font-size:11px;color:#a0c4ff;line-height:1.9;white-space:pre;overflow-x:auto}
+.kw{color:#cc99cd}.fn2{color:#6bc5f8}.str{color:#99cc99}.cm{color:#4a5e4a;font-style:italic}.num{color:#f08d49}
+
+/* CARDS */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.card-hdr{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border)}
+.card-title{font-family:var(--sans);font-weight:600;font-size:13px;color:#fff;display:flex;align-items:center;gap:8px}
+.card-body{padding:16px}
+
+/* METRICS */
+.metrics-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.metric{background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:14px;position:relative;overflow:hidden}
+.metric::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px}
+.ok::after{background:var(--green)}.warn::after{background:var(--yellow)}.crit::after{background:var(--red)}
+.metric-lbl{font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:6px}
+.metric-val{font-family:var(--sans);font-size:26px;font-weight:700;line-height:1;margin-bottom:3px}
+.ok .metric-val{color:var(--green)}.warn .metric-val{color:var(--yellow)}.crit .metric-val{color:var(--red)}
+.metric-sub{font-size:10px;color:var(--muted)}
+.progress{height:3px;background:var(--border);border-radius:2px;overflow:hidden;margin-top:8px}
+.progress-fill{height:100%;border-radius:2px;transition:width 1s}
+.ok .progress-fill{background:var(--green)}.warn .progress-fill{background:var(--yellow)}.crit .progress-fill{background:var(--red)}
+
+/* TABLE */
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{padding:8px 12px;font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);border-bottom:1px solid var(--border);text-align:left}
+.tbl td{padding:9px 12px;border-bottom:1px solid rgba(33,38,45,.5);font-size:12px;vertical-align:middle}
+.tbl tr:hover td{background:rgba(255,255,255,.015)}
+.tbl tr:last-child td{border-bottom:none}
+
+/* BADGE */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:3px;font-size:10px;font-weight:600;text-transform:uppercase}
+.bg{background:rgba(63,185,80,.15);color:var(--green)}
+.br{background:rgba(248,81,73,.15);color:var(--red)}
+.by{background:rgba(227,179,65,.15);color:var(--yellow)}
+.bm{background:rgba(110,118,129,.15);color:var(--muted)}
+.bd{width:5px;height:5px;border-radius:50%;background:currentColor}
+
+/* INPUTS */
+.inp{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:5px;font-family:var(--mono);font-size:12px;outline:none;transition:border-color .2s}
+.inp:focus{border-color:var(--blue)}
+.inp option{background:var(--surface2)}
+.inp-grow{flex:1;min-width:180px}
+.live-btn{display:flex;align-items:center;gap:6px;padding:6px 13px;border-radius:5px;border:1px solid var(--green);background:rgba(63,185,80,.08);color:var(--green);cursor:pointer;font-family:var(--mono);font-size:11px;transition:all .2s}
+.live-btn.off{border-color:var(--muted);background:transparent;color:var(--muted)}
+.live-dot{width:6px;height:6px;border-radius:50%;background:currentColor;animation:blink 1s infinite}
+.live-btn.off .live-dot{animation:none}
+
+/* LOG */
+.log-out{background:#060809;border:1px solid var(--border);border-radius:6px;padding:13px;height:360px;overflow-y:auto;font-size:11.5px;line-height:1.9;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+.le{display:flex;gap:8px;align-items:baseline;margin-bottom:1px}
+.le-ts{color:#2a4a3a;flex-shrink:0;font-size:11px}
+.le-unit{color:#2d5a7a;flex-shrink:0}
+.le-msg{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:60vw}
+.le-msg.err{color:var(--red)}.le-msg.warning{color:var(--yellow)}.le-msg.info{color:var(--blue)}.le-msg.ok{color:var(--green)}
+
+/* BOOT BARS */
+.boot-row{display:grid;grid-template-columns:140px 1fr 65px;align-items:center;gap:10px;margin-bottom:5px;font-size:11px}
+.boot-name{color:var(--muted);text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.boot-wrap{position:relative;height:16px}
+.boot-fill{position:absolute;height:100%;border-radius:3px;display:flex;align-items:center;padding-left:6px;font-size:10px;color:rgba(0,0,0,.8);font-weight:500;overflow:hidden;white-space:nowrap}
+.boot-ms{text-align:right}
+
+/* BTN */
+.btn{padding:4px 10px;border-radius:4px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;font-family:var(--mono);font-size:11px;transition:all .15s}
+.btn:hover{border-color:var(--green);color:var(--green);background:rgba(63,185,80,.05)}
+.btn.red:hover{border-color:var(--red);color:var(--red);background:rgba(248,81,73,.05)}
+
+/* LOADING */
+.loading{display:flex;align-items:center;justify-content:center;height:80px;color:var(--muted);gap:10px;font-size:12px}
+.spin{width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--green);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* INLINE CODE */
+.ic{color:var(--cyan);background:rgba(57,208,216,.08);padding:1px 5px;border-radius:3px;font-size:11px}
+
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="logo">
+    <div class="logo-mark">$_</div>
+    SysWatch
+    <span style="font-size:11px;color:var(--muted);font-weight:400;font-family:var(--mono)">linux monitor</span>
+  </div>
+  <div class="topbar-right">
+    <div class="host-chip">
+      <div class="pulse"></div>
+      <span id="hostnameTxt">loading...</span>
+      <span style="color:var(--border)">·</span>
+      <span id="kernelTxt">—</span>
+      <span style="color:var(--border)">·</span>
+      <span id="uptimeTxt">—</span>
+    </div>
+    <button class="topbar-btn active" id="learnBtn" onclick="toggleLearn()">📖 Learn: ON</button>
+    <button class="topbar-btn logout" onclick="logout()">↩ Logout</button>
+  </div>
+</div>
+
+<div class="app">
+  <!-- SIDEBAR -->
+  <nav class="sidebar">
+    <div class="nav-group">
+      <div class="nav-group-label">Monitor</div>
+      <div class="nav-item active" id="nav-overview" onclick="goto('overview')"><span class="nav-icon">◈</span>Overview</div>
+      <div class="nav-item" id="nav-services" onclick="goto('services')"><span class="nav-icon">⚙</span>Services</div>
+      <div class="nav-item" id="nav-logs" onclick="goto('logs')"><span class="nav-icon">≡</span>Journal Logs</div>
+      <div class="nav-item" id="nav-processes" onclick="goto('processes')"><span class="nav-icon">◎</span>Processes</div>
+      <div class="nav-item" id="nav-boot" onclick="goto('boot')"><span class="nav-icon">▶</span>Boot Analysis</div>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-label">Quick Units</div>
+      <div class="nav-item" onclick="gotoLogs('nginx')"><div class="sdot dg"></div>nginx</div>
+      <div class="nav-item" onclick="gotoLogs('sshd')"><div class="sdot dg"></div>sshd</div>
+      <div class="nav-item" onclick="gotoLogs('docker')"><div class="sdot dy"></div>docker</div>
+      <div class="nav-item" onclick="gotoLogs('postgresql')"><div class="sdot dy"></div>postgresql</div>
+    </div>
+    <div style="padding:16px;margin-top:auto;border-top:1px solid var(--border)">
+      <div style="font-size:10px;color:var(--muted);line-height:1.8">
+        <div style="color:var(--green);margin-bottom:4px">SysWatch v1.0.0</div>
+        <a href="https://github.com/YOUR/syswatch" target="_blank" style="color:var(--muted);text-decoration:none">★ Star on GitHub</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- CONTENT -->
+  <div class="content">
+
+    <!-- ══════════ OVERVIEW ══════════ -->
+    <div class="page active" id="page-overview">
+      <div class="split">
+        <div class="main-panel">
+          <div class="metrics-row" id="metricsRow">
+            <div class="metric ok" id="m-cpu"><div class="metric-lbl">CPU</div><div class="metric-val" id="v-cpu">—</div><div class="metric-sub" id="s-cpu">loading...</div><div class="progress"><div class="progress-fill" id="b-cpu" style="width:0%"></div></div></div>
+            <div class="metric ok" id="m-mem"><div class="metric-lbl">Memory</div><div class="metric-val" id="v-mem">—</div><div class="metric-sub" id="s-mem">loading...</div><div class="progress"><div class="progress-fill" id="b-mem" style="width:0%"></div></div></div>
+            <div class="metric ok" id="m-disk"><div class="metric-lbl">Disk</div><div class="metric-val" id="v-disk">—</div><div class="metric-sub" id="s-disk">loading...</div><div class="progress"><div class="progress-fill" id="b-disk" style="width:0%"></div></div></div>
+            <div class="metric ok" id="m-load"><div class="metric-lbl">Load Avg</div><div class="metric-val" id="v-load">—</div><div class="metric-sub" id="s-load">1m · 5m · 15m</div><div class="progress"><div class="progress-fill" id="b-load" style="width:0%"></div></div></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+            <div class="card">
+              <div class="card-hdr"><div class="card-title">⚙ Service Health</div></div>
+              <div class="card-body" id="svcHealth"><div class="loading"><div class="spin"></div>loading services...</div></div>
+            </div>
+            <div class="card">
+              <div class="card-hdr"><div class="card-title">≡ Live Journal Feed</div><span class="badge bg"><span class="bd"></span>live</span></div>
+              <div style="background:#060809;padding:10px 14px;max-height:130px;overflow:hidden;font-size:11px;line-height:2" id="liveFeed"></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-hdr"><div class="card-title">◉ CPU — 60s History</div></div>
+            <div class="card-body" style="padding:10px 14px">
+              <canvas id="cpuCanvas" style="width:100%;height:70px;display:block"></canvas>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+            <div class="card">
+              <div class="card-hdr"><div class="card-title">↕ Network I/O</div></div>
+              <div class="card-body" style="display:flex;gap:20px">
+                <div><div style="font-size:10px;color:var(--muted);margin-bottom:4px">RX (in)</div><div style="font-size:20px;font-weight:700;color:var(--blue)" id="net-rx">— KB/s</div></div>
+                <div><div style="font-size:10px;color:var(--muted);margin-bottom:4px">TX (out)</div><div style="font-size:20px;font-weight:700;color:var(--cyan)" id="net-tx">— KB/s</div></div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-hdr"><div class="card-title">💾 Disk I/O</div></div>
+              <div class="card-body" style="display:flex;gap:20px">
+                <div><div style="font-size:10px;color:var(--muted);margin-bottom:4px">Read</div><div style="font-size:20px;font-weight:700;color:var(--green)" id="disk-r">— KB/s</div></div>
+                <div><div style="font-size:10px;color:var(--muted);margin-bottom:4px">Write</div><div style="font-size:20px;font-weight:700;color:var(--yellow)" id="disk-w">— KB/s</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- LEARN: overview -->
+        <div class="learn-panel" id="lp-overview">
+          <div class="lp-inner">
+            <div class="ls"><div class="ls-title">📊 Metrics — /proc files</div>
+              <div class="cmd-block"><div class="cmd-hdr"><span class="cmd-lbl">CPU usage</span><span class="cmd-copy" onclick="cc(this,'cat /proc/stat')">copy</span></div><div class="cmd-code">cat /proc/stat</div><div class="cmd-expl">Linux exposes raw CPU tick counters here. Read it twice 500ms apart, compute: <code class="ic">(total−idle)/total×100</code>. This is how <code class="ic">top</code> and <code class="ic">htop</code> work internally.</div><div class="flags"><div class="flag"><span class="fn">Fields</span><span class="fd">user, nice, system, idle, iowait, irq, softirq, steal</span></div><div class="flag"><span class="fn">idle+iowait</span><span class="fd">= "doing nothing" ticks</span></div></div></div>
+              <div class="cmd-block"><div class="cmd-hdr"><span class="cmd-lbl">Memory</span><span class="cmd-copy" onclick="cc(this,'cat /proc/meminfo')">copy</span></div><div class="cmd-code">cat /proc/meminfo</div><div class="cmd-expl">All memory stats in kB. Use <code class="ic">MemAvailable</code> (not MemFree) — Linux caches files in unused RAM, so MemFree appears low but memory IS available.</div></div>
+              <div class="cmd-block"><div class="cmd-hdr"><span class="cmd-lbl">Load average</span><span class="cmd-copy" onclick="cc(this,'cat /proc/loadavg')">copy</span></div><div class="cmd-code">cat /proc/loadavg</div><div class="cmd-expl">5 values: 1min, 5min, 15min load, running/total procs, last PID. Load of 1.0 on 1 CPU = 100% saturated. On 4 CPUs, saturated = 4.0.</div></div>
+              <div class="cmd-block"><div class="cmd-hdr"><span class="cmd-lbl">Network I/O</span><span class="cmd-copy" onclick="cc(this,'cat /proc/net/dev')">copy</span></div><div class="cmd-code">cat /proc/net/dev</div><div class="cmd-expl">Cumulative RX/TX byte counters per interface. Compute KB/s by reading twice, dividing byte-difference by elapsed time.</div></div>
+              <div class="node-block"><div class="node-hdr">⬡ Node.js reads /proc directly</div><div class="node-code"><span class="kw">const</span> fs = <span class="fn2">require</span>(<span class="str">'fs'</span>);
+<span class="cm">// CPU: read twice, diff the ticks</span>
+<span class="kw">const</span> line = fs.<span class="fn2">readFileSync</span>(<span class="str">'/proc/stat'</span>)
+               .<span class="fn2">toString</span>().<span class="fn2">split</span>(<span class="str">'\n'</span>)[<span class="num">0</span>];
+<span class="cm">// Memory: parse key:value lines</span>
+<span class="kw">const</span> mem = fs.<span class="fn2">readFileSync</span>(<span class="str">'/proc/meminfo'</span>).<span class="fn2">toString</span>();
+<span class="kw">const</span> total = mem.<span class="fn2">match</span>(<span class="str">/MemTotal:\s+(\d+)/</span>)?.[<span class="num">1</span>];</div></div>
+              <div class="note"><strong>💡 Why no npm packages?</strong> Reading <code class="ic">/proc</code> is a raw file read — almost zero overhead. The kernel writes these files live in memory, so <code class="ic">fs.readFileSync</code> is perfect and fast.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ SERVICES ══════════ -->
+    <div class="page" id="page-services">
+      <div class="split">
+        <div class="main-panel">
+          <div class="card">
+            <div class="card-hdr">
+              <div class="card-title">⚙ systemd Services</div>
+              <div style="display:flex;gap:8px">
+                <select class="inp" id="svcFilter" onchange="renderSvcs()">
+                  <option value="">All Status</option>
+                  <option value="active">Running</option>
+                  <option value="failed">Failed</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+                <button class="btn" onclick="loadSvcs()">↻ Refresh</button>
+              </div>
+            </div>
+            <div id="svcTableWrap"><div class="loading"><div class="spin"></div>loading services...</div></div>
+          </div>
+        </div>
+        <div class="learn-panel" id="lp-services">
+          <div class="lp-inner">
+            <div class="ls"><div class="ls-title">⚙ systemctl Commands</div>
+              <div class="cmd-block"><div class="cmd-hdr"><span class="cmd-lbl">List all services</span><span class="cmd-copy" onclick="cc(this,'systemctl list-units --type=service --all --output=json')">copy</span></div><div class="cmd-code">systemctl list-units --type=service --all --output=json</div><div class="cmd-expl">Lists every service unit systemd knows. <code class="ic">--all</code> includes stopped ones. <code class="ic">--output=json</code> makes it machine-readable for Node.js.</div><div class="flags"><div class="flag"><span class="fn">--type=service</span><span class="fd">Only .service units (not timers, sockets)</span></div><div class="flag"><span class="fn">--all</span><span class="fd">Include inactive and failed units too</span></div><div class="flag"><span class="fn">--no-pager</span><span class="fd">Don't pipe through less — needed in scripts</span></div></div></div>
+              <div class="cmd-block"><div class="cmd-hdr"><span class="cmd-lbl">Service details</span><span class="cmd-copy" onclick="cc(this,'systemctl show nginx.service --property=MainPID,MemoryCurrent')">copy</span></div><div class="cmd-code">systemctl show nginx.service \
+  --property=MainPID,MemoryCurrent,ActiveState</div><div class="cmd-expl">Machine-readable properties — no parsing needed. Returns <code class="ic">KEY=VALUE</code> lines. Much faster than parsing <code class="ic">systemctl status</code> output.</div></div>
+              <div class="cmd-block"><div class="cmd-hdr"><span class="cmd-lbl">Control a service</span><span class="cmd-copy" onclick="cc(this,'systemctl restart nginx.service')">copy</span></div><div class="cmd-code">systemctl start|stop|restart nginx.service</div><div class="cmd-expl">Requires root. In Node.js use <code class="ic">execP('systemctl restart nginx')</code>. Secure it with a sudoers rule — never give the web process unrestricted sudo.</div></div>
+              <div class="node-block"><div class="node-hdr">⬡ Node.js — systemctl JSON</div><div class="node-code"><span class="kw">const</span> { stdout } = <span class="kw">await</span> <span class="fn2">execP</span>(
+  <span class="str">`systemctl list-units --type=service \
+   --all --output=json --no-pager`</span>
+);
+<span class="kw">const</span> units = JSON.<span class="fn2">parse</span>(stdout);
+<span class="cm">// each unit: { unit, load, active, sub, description }</span></div></div>
+              <div class="note"><strong>💡 sudoers tip:</strong> Add <code class="ic">www-data ALL=(root) NOPASSWD: /bin/systemctl restart nginx</code> to allow only that one command — nothing else.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ LOGS ══════════ -->
+    <div class="page" id="page-logs">
+      <div class="split">
+        <div class="main-panel">
+          <div class="card">
+            <div class="card-hdr">
+              <div class="card-title">≡ journalctl Viewer</div>
+              <button class="live-btn" id="liveBtn" onclick="toggleLive()"><div class="live-dot"></div>LIVE</button>
+            </div>
+            <div class="card-body" style="display:flex;flex-direction:column;gap:11px">
+              <div style="display:flex;gap:10px;flex-wrap:wrap">
+                <input class="inp inp-grow" type="text" id="logSearch" placeholder="grep pattern..." oninput="applyLogFilter()">
+                <select class="inp" id="logUnit" onchange="reconnectSSE()">
+                  <option value="">All units</option>
+                  <option value="nginx">nginx</option>
+                  <option value="sshd">sshd</option>
+                  <option value="docker">docker</option>
+                  <option value="postgresql">postgresql</option>
+                  <option value="kernel">kernel</option>
+                </select>
+                <select class="inp" id="logPrio" onchange="reconnectSSE()">
+                  <option value="">All priorities</option>
+                  <option value="err">Error (3)</option>
+                  <option value="warning">Warning (4)</option>
+                  <option value="notice">Notice (5)</option>
+                  <option value="info">Info (6)</option>
+                </select>
+              </div>
+              <div class="log-out" id="logOut"><div class="loading"><div class="spin"></div>connecting to journal stream...</div></div>
+              <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted)">
+                <span id="logCount">—</span>
+                <span>Equivalent: <code class="ic" id="logCmd">journalctl -f -o json</code></span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="learn-panel" id="lp-logs">
+          <div class="lp-inner">
+            <div class="ls"><div class="ls-title">≡ journalctl Commands</div>
+              <div class="cmd-block"><div class="cmd-hdr"><span class="cmd-lbl">Follow live</span><span class="cmd-copy" onclick="cc(this,'journalctl -f')">copy</span></div><div class="cmd-code">journalctl -f</div><div class="cmd-expl">Like <code class="ic">tail -f</code> for systemd journal. Streams new entries in real time. Ctrl+C to stop.</div><div class="flags"><div class="flag"><span class="fn">-f</span><span class="fd">Follow — keep streaming new entries</span></div><div class="flag"><span class="fn">-u nginx</span><span class="fd">Filter to only nginx.service</span></div><div class="flag"><span class="fn">-p err</span><span class="fd">Priority: emerg/alert/crit/err/warning/notice/info/debug</span></div><div class="flag"><span class="fn">-n 100</span><span class="fd">Show last N lines only</span></div><div class="flag"><span class="fn">--since "1h ago"</span><span class="fd">Time filter — relative or absolute</span></div><div class="flag"><span class="fn">-o json</span><span class="fd">JSON output — one JSON object per line, perfect for Node.js</span></div><div class="flag"><span class="fn">-b</span><span class="fd">Only this boot's logs</span></div><div class="flag"><span class="fn">-b -1</span><span class="fd">Previous boot's logs</span></div></div></div>
+              <div class="cmd-block"><div class="cmd-hdr"><span class="cmd-lbl">Search logs</span><span class="cmd-copy" onclick="cc(this,\"journalctl -u nginx --since today -o json | grep 'ERROR'\")">copy</span></div><div class="cmd-code">journalctl -u nginx --since today -o json | grep ERROR</div><div class="cmd-expl">With <code class="ic">-o json</code> each entry is one line — grep produces clean JSON objects. Pipe to <code class="ic">jq</code> for structured filtering.</div></div>
+              <div class="cmd-block"><div class="cmd-hdr"><span class="cmd-lbl">Disk usage</span><span class="cmd-copy" onclick="cc(this,'journalctl --disk-usage')">copy</span></div><div class="cmd-code">journalctl --disk-usage</div><div class="cmd-expl">See how much disk the journal uses. Rotate/trim: <code class="ic">journalctl --vacuum-size=500M</code> or <code class="ic">--vacuum-time=7d</code></div></div>
+              <div class="node-block"><div class="node-hdr">⬡ Node.js SSE stream</div><div class="node-code"><span class="cm">// Server-Sent Events: real-time log stream</span>
+app.<span class="fn2">get</span>(<span class="str">'/api/logs/stream'</span>, (req, res) => {
+  res.<span class="fn2">writeHead</span>(<span class="num">200</span>, {
+    <span class="str">'Content-Type'</span>: <span class="str">'text/event-stream'</span>,
+    <span class="str">'Cache-Control'</span>: <span class="str">'no-cache'</span>,
+  });
+  <span class="kw">const</span> proc = <span class="fn2">spawn</span>(<span class="str">'journalctl'</span>,
+    [<span class="str">'-f'</span>, <span class="str">'-o'</span>, <span class="str">'json'</span>]);
+  proc.stdout.<span class="fn2">on</span>(<span class="str">'data'</span>, d =>
+    res.<span class="fn2">write</span>(<span class="str">`data: ${d}\n\n`</span>));
+  req.<span class="fn2">on</span>(<span class="str">'close'</span>, () => proc.<span class="fn2">kill</span>());
+});
+
+<span class="cm">// Browser side:</span>
+<span class="kw">const</span> es = <span class="kw">new</span> <span class="fn2">EventSource</span>(<span class="str">'/api/logs/stream'</span>);
+es.<span class="fn2">onmessage</span> = e => {
+  <span class="kw">const</span> entry = JSON.<span class="fn2">parse</span>(e.data);
+  <span class="cm">// entry.MESSAGE, entry._SYSTEMD_UNIT, etc.</span>
+};</div></div>
+              <div class="note"><strong>💡 SSE vs WebSocket:</strong> SSE is one-way (server→browser), auto-reconnects, and works over plain HTTP. Perfect for log streaming. Use WebSockets only if you need bidirectional messaging.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ PROCESSES ══════════ -->
+    <div class="page" id="page-processes">
+      <div class="split">
+        <div class="main-panel">
+          <div class="card">
+            <div class="card-hdr">
+              <div class="card-title">◎ Processes <span style="color:var(--muted);font-weight:400;font-size:11px" id="procCnt"></span></div>
+              <div style="display:flex;gap:8px">
+                <select class="inp" id="procSort" onchange="renderProcs()"><option value="cpu">Sort: CPU%</option><option value="memKb">Sort: Memory</option><option value="pid">Sort: PID</option></select>
+                <button class="btn" onclick="loadProcs()">↻ Refresh</button>
+              </div>
+            </div>
+            <div id="procTableWrap"><div class="loading"><div class="spin"></div>loading processes...</div></div>
+          </div>
+        </div>
+        <div class="learn-panel" id="lp-processes">
+          <div class="lp-inner">
+            <div class="ls"><div class="ls-title">◎ Process Commands</div>
+              <div class="cmd-block"><div class="cmd-hdr"><span class="cmd-lbl">List processes</span><span class="cmd-copy" onclick="cc(this,'ps aux --sort=-%cpu')">copy</span></div><div class="cmd-code">ps aux --sort=-%cpu</div><div class="cmd-expl">Snapshot of all processes sorted by CPU. Unlike <code class="ic">top</code> it exits immediately — easy to parse. SysWatch reads <code class="ic">/proc/PID/*</code> directly for better control.</div><div class="flags"><div class="flag"><span class="fn">a</span><span class="fd">All users' processes</span></div><div class="flag"><span class="fn">u</span><span class="fd">Show username, CPU%, MEM%</span></div><div class="flag"><span class="fn">x</span><span class="fd">Include processes without a terminal</span></div><div class="flag"><span class="fn">--sort=-%mem</span><span class="fd">Sort by memory descending</span></div></div></div>
+              <div class="cmd-block"><div class="cmd-hdr"><span class="cmd-lbl">/proc/PID files</span><span class="cmd-copy" onclick="cc(this,'cat /proc/1234/status')">copy</span></div><div class="cmd-code">cat /proc/1234/comm     # process name
+cat /proc/1234/status   # VmRSS, Uid, state
+cat /proc/1234/stat     # CPU ticks (field 14,15)
+cat /proc/1234/cmdline  # full command line</div><div class="cmd-expl">Every running process has a directory in <code class="ic">/proc/PID/</code>. Reading these files is how SysWatch gets live data without any external tool.</div></div>
+              <div class="cmd-block"><div class="cmd-hdr"><span class="cmd-lbl">Kill a process</span><span class="cmd-copy" onclick="cc(this,'kill -15 1234 && kill -9 1234')">copy</span></div><div class="cmd-code">kill -15 &lt;PID&gt;  # SIGTERM (graceful)
+kill -9  &lt;PID&gt;  # SIGKILL (force)</div><div class="cmd-expl">Always try SIGTERM (15) first — it lets the process clean up. SIGKILL (9) can't be caught or ignored; the kernel terminates it immediately.</div></div>
+              <div class="node-block"><div class="node-hdr">⬡ Node.js — scan /proc</div><div class="node-code"><span class="cm">// All numeric dirs in /proc = PIDs</span>
+<span class="kw">const</span> pids = fs.<span class="fn2">readdirSync</span>(<span class="str">'/proc'</span>)
+  .<span class="fn2">filter</span>(d => <span class="str">/^\d+$/</span>.<span class="fn2">test</span>(d));
+
+<span class="kw">for</span> (<span class="kw">const</span> pid <span class="kw">of</span> pids) {
+  <span class="kw">const</span> name = fs.<span class="fn2">readFileSync</span>(
+    <span class="str">`/proc/${pid}/comm`</span>, <span class="str">'utf8'</span>).<span class="fn2">trim</span>();
+  <span class="cm">// VmRSS in status = resident memory (KB)</span>
+}
+<span class="cm">// Kill from Node.js:</span>
+process.<span class="fn2">kill</span>(+pid, <span class="num">15</span>); <span class="cm">// SIGTERM</span></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ BOOT ══════════ -->
+    <div class="page" id="page-boot">
+      <div class="split">
+        <div class="main-panel">
+          <div class="card">
+            <div class="card-hdr"><div class="card-title">▶ Boot Analysis</div><button class="btn" onclick="loadBoot()">↻ Refresh</button></div>
+            <div class="card-body">
+              <div style="font-size:11px;color:var(--muted);margin-bottom:14px">Command: <code class="ic">systemd-analyze blame</code> — sorted by startup time</div>
+              <div id="bootBars"><div class="loading"><div class="spin"></div>running systemd-analyze...</div></div>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+            <div class="card"><div class="card-hdr"><div class="card-title">⌛ Time Breakdown</div></div><div class="card-body" id="bootTimes"><div class="loading"><div class="spin"></div></div></div></div>
+            <div class="card"><div class="card-hdr"><div class="card-title">🔗 Critical Chain</div></div><div class="card-body" style="font-size:11px;line-height:2;color:var(--muted)">Run: <code class="ic">systemd-analyze critical-chain</code><br>to see the slowest dependency path.</div></div>
+          </div>
+        </div>
+        <div class="learn-panel" id="lp-boot">
+          <div class="lp-inner">
+            <div class="ls"><div class="ls-title">▶ systemd-analyze Commands</div>
+              <div class="cmd-block"><div class="cmd-hdr"><span class="cmd-lbl">Total boot time</span><span class="cmd-copy" onclick="cc(this,'systemd-analyze')">copy</span></div><div class="cmd-code">systemd-analyze</div><div class="cmd-expl">Shows total time split: firmware + bootloader + kernel + userspace. Quick benchmark for your server's startup speed.</div></div>
+              <div class="cmd-block"><div class="cmd-hdr"><span class="cmd-lbl">Per-service blame</span><span class="cmd-copy" onclick="cc(this,'systemd-analyze blame')">copy</span></div><div class="cmd-code">systemd-analyze blame</div><div class="cmd-expl">Lists every service sorted by how long it took to initialize. Find what's slowing your boot. Use <code class="ic">--json=short</code> for Node.js parsing.</div></div>
+              <div class="cmd-block"><div class="cmd-hdr"><span class="cmd-lbl">Critical dependency chain</span><span class="cmd-copy" onclick="cc(this,'systemd-analyze critical-chain')">copy</span></div><div class="cmd-code">systemd-analyze critical-chain</div><div class="cmd-expl">The slowest path from kernel to <code class="ic">multi-user.target</code>. Like a flamegraph for boot — shows which dependency chain determined total boot time.</div></div>
+              <div class="cmd-block"><div class="cmd-hdr"><span class="cmd-lbl">Generate SVG flamegraph</span><span class="cmd-copy" onclick="cc(this,'systemd-analyze plot > boot.svg')">copy</span></div><div class="cmd-code">systemd-analyze plot > boot.svg</div><div class="cmd-expl">Generates a beautiful SVG timeline of the entire boot sequence. Open in a browser.</div></div>
+              <div class="node-block"><div class="node-hdr">⬡ Node.js — parse blame</div><div class="node-code"><span class="kw">const</span> { stdout } = <span class="kw">await</span> <span class="fn2">execP</span>(
+  <span class="str">'systemd-analyze blame --json=short'</span>
+);
+<span class="cm">// returns array of { name, time } objects</span>
+<span class="kw">const</span> blame = JSON.<span class="fn2">parse</span>(stdout);
+<span class="cm">// blame[0] = slowest service</span></div></div>
+              <div class="note"><strong>💡 Reduce boot time:</strong> Disable services you don't need: <code class="ic">systemctl disable bluetooth.service</code>. Use <code class="ic">systemctl mask</code> to prevent a service from ever starting.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════
+//  SysWatch Frontend  —  public/js embedded
+//  Connects to real Node.js API endpoints
+// ══════════════════════════════════════════════
+
+// ── state ─────────────────────────────────────
+let learnOn = true;
+let liveOn  = true;
+let sseConn = null;
+let logBuffer = [];
+let svcData = [];
+let procData = [];
+let cpuHistory = [];
+let metricsInterval = null;
+
+// ── nav ───────────────────────────────────────
+function goto(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + id)?.classList.add('active');
+  document.getElementById('nav-' + id)?.classList.add('active');
+  if (id === 'services')  loadSvcs();
+  if (id === 'processes') loadProcs();
+  if (id === 'boot')      loadBoot();
+  if (id === 'logs')      connectSSE();
+}
+
+function gotoLogs(unit) {
+  goto('logs');
+  setTimeout(() => {
+    const sel = document.getElementById('logUnit');
+    if (sel) { sel.value = unit; reconnectSSE(); }
+  }, 100);
+}
+
+// ── learn panel ───────────────────────────────
+function toggleLearn() {
+  learnOn = !learnOn;
+  document.querySelectorAll('.learn-panel').forEach(p => p.classList.toggle('off', !learnOn));
+  const btn = document.getElementById('learnBtn');
+  btn.className = 'topbar-btn' + (learnOn ? ' active' : '');
+  btn.textContent = '📖 Learn: ' + (learnOn ? 'ON' : 'OFF');
+}
+
+// ── copy command ──────────────────────────────
+function cc(el, text) {
+  navigator.clipboard.writeText(text).then(() => {
+    el.textContent = '✓ copied'; setTimeout(() => el.textContent = 'copy', 2000);
+  }).catch(() => { el.textContent = 'copy'; });
+}
+
+// ── auth ──────────────────────────────────────
+async function logout() {
+  await fetch('/auth/logout', { method: 'POST', credentials: 'include' });
+  window.location.href = '/login';
+}
+
+// Check auth on load
+fetch('/auth/status', { credentials: 'include' })
+  .then(r => r.json())
+  .then(d => { if (d.authEnabled && !d.authenticated) window.location.href = '/login'; });
+
+// ── METRICS ───────────────────────────────────
+async function loadMetrics() {
+  try {
+    const r = await fetch('/api/metrics', { credentials: 'include' });
+    if (r.status === 401) { window.location.href = '/login'; return; }
+    const d = await r.json();
+    updateMetrics(d);
+  } catch (e) { console.warn('metrics fetch failed', e); }
+}
+
+function updateMetrics(d) {
+  // System info bar
+  if (d.hostname) document.getElementById('hostnameTxt').textContent = d.hostname;
+  if (d.kernel)   document.getElementById('kernelTxt').textContent   = 'kernel ' + d.kernel;
+  if (d.uptime)   document.getElementById('uptimeTxt').textContent   = '↑ ' + d.uptime.pretty;
+
+  // CPU card
+  if (d.cpu !== undefined) {
+    const pct = d.cpu;
+    const cls = pct > 80 ? 'crit' : pct > 60 ? 'warn' : 'ok';
+    setMetric('cpu', pct + '%', d.cpuInfo ? `${d.cpuInfo.cores} cores · ${d.cpuInfo.model?.slice(0,20)}` : '', pct, cls);
+    cpuHistory.push(pct);
+    if (cpuHistory.length > 30) cpuHistory.shift();
+    drawCpuCanvas();
+  }
+
+  // Memory card
+  if (d.mem) {
+    const m = d.mem;
+    const cls = m.pct > 90 ? 'crit' : m.pct > 70 ? 'warn' : 'ok';
+    setMetric('mem', m.pct + '%', `${m.usedMb} MB / ${m.totalMb} MB used`, m.pct, cls);
+  }
+
+  // Disk card
+  if (d.disk) {
+    const cls = d.disk.pct > 90 ? 'crit' : d.disk.pct > 75 ? 'warn' : 'ok';
+    setMetric('disk', d.disk.pct + '%', `${d.disk.usedGb} GB / ${d.disk.totalGb} GB`, d.disk.pct, cls);
+  }
+
+  // Load card
+  if (d.load) {
+    const loadPct = Math.min(100, d.load.m1 / (d.cpuInfo?.cores || 1) * 100);
+    const cls = loadPct > 90 ? 'crit' : loadPct > 70 ? 'warn' : 'ok';
+    setMetric('load', d.load.m1.toFixed(2), `${d.load.m1} · ${d.load.m5} · ${d.load.m15}`, loadPct, cls);
+  }
+
+  // Network I/O
+  if (d.net) {
+    document.getElementById('net-rx').textContent = d.net.rxKBs + ' KB/s';
+    document.getElementById('net-tx').textContent = d.net.txKBs + ' KB/s';
+  }
+
+  // Disk I/O
+  if (d.diskIO) {
+    document.getElementById('disk-r').textContent = d.diskIO.readKBs  + ' KB/s';
+    document.getElementById('disk-w').textContent = d.diskIO.writeKBs + ' KB/s';
+  }
+}
+
+function setMetric(id, val, sub, pct, cls) {
+  const card = document.getElementById('m-' + id);
+  if (card) card.className = 'metric ' + cls;
+  const v = document.getElementById('v-' + id);
+  if (v) v.textContent = val;
+  const s = document.getElementById('s-' + id);
+  if (s) s.textContent = sub;
+  const b = document.getElementById('b-' + id);
+  if (b) b.style.width = Math.min(100, pct) + '%';
+}
+
+// ── CPU CANVAS ────────────────────────────────
+function drawCpuCanvas() {
+  const canvas = document.getElementById('cpuCanvas');
+  if (!canvas) return;
+  const W = canvas.offsetWidth || 600, H = 70;
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  const vals = cpuHistory.length ? cpuHistory : Array(10).fill(0);
+  const step = W / (vals.length - 1 || 1);
+  ctx.clearRect(0, 0, W, H);
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, 'rgba(63,185,80,.25)');
+  grad.addColorStop(1, 'rgba(63,185,80,0)');
+  ctx.beginPath(); ctx.moveTo(0, H);
+  vals.forEach((v, i) => ctx.lineTo(i * step, H - (v / 100 * H * .9)));
+  ctx.lineTo(W, H); ctx.closePath();
+  ctx.fillStyle = grad; ctx.fill();
+  ctx.beginPath();
+  vals.forEach((v, i) => { const x=i*step, y=H-(v/100*H*.9); i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); });
+  ctx.strokeStyle = '#3fb950'; ctx.lineWidth = 1.5; ctx.stroke();
+}
+
+// ── SERVICES ──────────────────────────────────
+async function loadSvcs() {
+  document.getElementById('svcTableWrap').innerHTML = '<div class="loading"><div class="spin"></div>loading services...</div>';
+  try {
+    const r = await fetch('/api/services', { credentials: 'include' });
+    svcData = await r.json();
+    updateSvcHealth();
+    renderSvcs();
+  } catch (e) {
+    document.getElementById('svcTableWrap').innerHTML = `<div class="loading" style="color:var(--red)">⚠ ${e.message}</div>`;
+  }
+}
+
+function renderSvcs() {
+  const f = document.getElementById('svcFilter')?.value || '';
+  const rows = svcData.filter(s => !f || s.active === f || s.activesub === f);
+  document.getElementById('svcTableWrap').innerHTML = `
+    <table class="tbl">
+      <thead><tr><th>Unit</th><th>Description</th><th>Status</th><th>PID</th><th>Memory</th><th>Actions</th></tr></thead>
+      <tbody>${rows.map(s => {
+        const st = s.active === 'active' ? 'bg' : s.active === 'failed' ? 'br' : 'bm';
+        const lbl = s.sub || s.active;
+        return `<tr>
+          <td style="color:#fff;font-weight:500">${s.unit}</td>
+          <td style="color:var(--muted);font-size:11px">${s.description || '—'}</td>
+          <td><span class="badge ${st}"><span class="bd"></span>${lbl}</span></td>
+          <td style="color:var(--muted)">${s.pid || '—'}</td>
+          <td style="color:var(--muted)">${s.memMb || '—'}</td>
+          <td style="display:flex;gap:6px">
+            <button class="btn" onclick="viewSvcLogs('${s.unit}')">logs</button>
+            ${s.active === 'active'
+              ? `<button class="btn red" onclick="svcAction('${s.unit}','restart')">restart</button>`
+              : `<button class="btn" onclick="svcAction('${s.unit}','start')">start</button>`}
+          </td></tr>`;
+      }).join('')}</tbody>
+    </table>`;
+}
+
+function updateSvcHealth() {
+  const running  = svcData.filter(s => s.active === 'active').length;
+  const failed   = svcData.filter(s => s.active === 'failed').length;
+  const inactive = svcData.filter(s => s.active === 'inactive').length;
+  document.getElementById('svcHealth').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;text-align:center">
+      <div style="padding:10px;background:rgba(63,185,80,.06);border:1px solid rgba(63,185,80,.15);border-radius:6px">
+        <div style="font-family:var(--sans);font-size:24px;font-weight:700;color:var(--green)">${running}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:3px">RUNNING</div>
+      </div>
+      <div style="padding:10px;background:rgba(248,81,73,.06);border:1px solid rgba(248,81,73,.15);border-radius:6px">
+        <div style="font-family:var(--sans);font-size:24px;font-weight:700;color:var(--red)">${failed}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:3px">FAILED</div>
+      </div>
+      <div style="padding:10px;background:rgba(110,118,129,.08);border:1px solid var(--border);border-radius:6px">
+        <div style="font-family:var(--sans);font-size:24px;font-weight:700;color:var(--muted)">${inactive}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:3px">INACTIVE</div>
+      </div>
+    </div>`;
+}
+
+async function svcAction(name, action) {
+  if (!confirm(`Run: systemctl ${action} ${name} ?`)) return;
+  const r = await fetch(`/api/services/${name}/control`, {
+    method: 'POST', credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action }),
+  });
+  const d = await r.json();
+  alert(r.ok ? `✓ ${action} ${name} OK` : '✗ ' + d.error);
+  loadSvcs();
+}
+
+function viewSvcLogs(unit) {
+  gotoLogs(unit.replace('.service', ''));
+}
+
+// ── LOGS / SSE ────────────────────────────────
+function connectSSE() {
+  if (sseConn) { sseConn.close(); sseConn = null; }
+  logBuffer = [];
+  renderLogBuffer();
+
+  const unit = document.getElementById('logUnit')?.value || '';
+  const prio = document.getElementById('logPrio')?.value || '';
+  let url = '/api/logs/stream?lines=80';
+  if (unit) url += '&unit=' + unit;
+  if (prio) url += '&priority=' + prio;
+
+  // update command hint
+  let cmd = 'journalctl -f -o json';
+  if (unit) cmd += ' -u ' + unit;
+  if (prio) cmd += ' -p ' + prio;
+  const cmdEl = document.getElementById('logCmd');
+  if (cmdEl) cmdEl.textContent = cmd;
+
+  sseConn = new EventSource(url);
+
+  sseConn.onmessage = e => {
+    try {
+      const entry = JSON.parse(e.data);
+      if (!entry.msg) return;
+      logBuffer.push(entry);
+      if (logBuffer.length > 500) logBuffer.shift();
+      if (liveOn) renderLogBuffer();
+    } catch {}
+  };
+
+  sseConn.onerror = () => {
+    const el = document.getElementById('logOut');
+    if (el && !logBuffer.length)
+      el.innerHTML = '<div class="loading" style="color:var(--red)">⚠ Cannot connect to journal stream. Make sure server is running as root.</div>';
+  };
+}
+
+function reconnectSSE() { if (document.getElementById('page-logs').classList.contains('active')) connectSSE(); }
+function toggleLive() {
+  liveOn = !liveOn;
+  const btn = document.getElementById('liveBtn');
+  btn.className = 'live-btn' + (liveOn ? '' : ' off');
+  btn.innerHTML = `<div class="live-dot"></div>${liveOn ? 'LIVE' : 'PAUSED'}`;
+  if (liveOn) renderLogBuffer();
+}
+
+function applyLogFilter() { renderLogBuffer(); }
+
+function renderLogBuffer() {
+  const search = document.getElementById('logSearch')?.value?.toLowerCase() || '';
+  let filtered = logBuffer;
+  if (search) filtered = filtered.filter(e =>
+    e.msg?.toLowerCase().includes(search) || e.unit?.toLowerCase().includes(search));
+
+  const html = filtered.map(e => {
+    const ts  = e.ts ? new Date(e.ts).toLocaleTimeString() : '??:??:??';
+    const lvl = e.level || 'info';
+    const msgClass = ['emerg','alert','crit','err'].includes(lvl) ? 'err'
+                   : lvl === 'warning' ? 'warning'
+                   : lvl === 'info' || lvl === 'notice' ? 'info' : '';
+    return `<div class="le"><span class="le-ts">${ts}</span><span class="le-unit">${e.unit || 'kernel'}:</span><span class="le-msg ${msgClass}">${e.msg}</span></div>`;
+  }).join('');
+
+  const out = document.getElementById('logOut');
+  if (!out) return;
+  out.innerHTML = html || '<div style="color:var(--muted);padding:20px;text-align:center">No entries match filter</div>';
+  if (liveOn) out.scrollTop = out.scrollHeight;
+
+  const cnt = document.getElementById('logCount');
+  if (cnt) cnt.textContent = `${filtered.length} of ${logBuffer.length} entries`;
+
+  // also update live feed on overview
+  const feed = document.getElementById('liveFeed');
+  if (feed) {
+    const last8 = logBuffer.slice(-8);
+    feed.innerHTML = last8.map(e => {
+      const lvl = e.level || 'info';
+      const col = ['emerg','alert','crit','err'].includes(lvl) ? 'var(--red)' : lvl === 'warning' ? 'var(--yellow)' : lvl === 'ok' ? 'var(--green)' : 'var(--text)';
+      const ts = e.ts ? new Date(e.ts).toLocaleTimeString() : '';
+      return `<div style="display:flex;gap:8px;overflow:hidden"><span style="color:var(--muted);flex-shrink:0;font-size:10px">${ts}</span><span style="color:#2d5a7a;flex-shrink:0">${e.unit||'kernel'}</span><span style="color:${col};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.msg}</span></div>`;
+    }).join('');
+  }
+}
+
+// ── PROCESSES ────────────────────────────────
+async function loadProcs() {
+  try {
+    const r = await fetch('/api/processes', { credentials: 'include' });
+    procData = await r.json();
+    renderProcs();
+  } catch (e) {
+    document.getElementById('procTableWrap').innerHTML = `<div class="loading" style="color:var(--red)">⚠ ${e.message}</div>`;
+  }
+}
+
+function renderProcs() {
+  const by = document.getElementById('procSort')?.value || 'cpu';
+  const sorted = [...procData].sort((a, b) => b[by] - a[by]).slice(0, 60);
+  document.getElementById('procCnt').textContent = `(${procData.length} total)`;
+  document.getElementById('procTableWrap').innerHTML = `
+    <table class="tbl">
+      <thead><tr><th>PID</th><th>Name</th><th>User</th><th>CPU%</th><th>MEM (RSS)</th><th>VSZ</th><th>State</th><th>Kill</th></tr></thead>
+      <tbody>${sorted.map(p => {
+        const cpuCol = p.cpu > 20 ? 'var(--red)' : p.cpu > 8 ? 'var(--yellow)' : 'var(--green)';
+        const stBadge = p.state === 'R' ? 'bg' : 'bm';
+        const stLabel = p.state === 'R' ? 'running' : p.state === 'S' ? 'sleep' : p.state || '?';
+        return `<tr>
+          <td style="color:var(--muted)">${p.pid}</td>
+          <td style="color:#fff;font-weight:500">${p.name}</td>
+          <td style="color:var(--muted)">${p.user}</td>
+          <td style="color:${cpuCol}">${p.cpu}%</td>
+          <td style="color:var(--text)">${p.memMb} MB</td>
+          <td style="color:var(--muted)">${p.vszMb} MB</td>
+          <td><span class="badge ${stBadge}">${stLabel}</span></td>
+          <td><button class="btn red" onclick="killProc(${p.pid}, '${p.name}')">kill</button></td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>`;
+}
+
+async function killProc(pid, name) {
+  if (!confirm(`Send SIGTERM to PID ${pid} (${name})?`)) return;
+  const r = await fetch(`/api/processes/${pid}?signal=15`, { method: 'DELETE', credentials: 'include' });
+  const d = await r.json();
+  alert(r.ok ? `✓ ${d.message}` : '✗ ' + d.error);
+  loadProcs();
+}
+
+// ── BOOT ─────────────────────────────────────
+async function loadBoot() {
+  try {
+    const r = await fetch('/api/boot', { credentials: 'include' });
+    const d = await r.json();
+    renderBoot(d);
+  } catch (e) {
+    document.getElementById('bootBars').innerHTML = `<div class="loading" style="color:var(--red)">⚠ ${e.message}</div>`;
+  }
+}
+
+function renderBoot(d) {
+  // blame bars
+  const items = d.blame || [];
+  const max   = Math.max(...items.map(b => b.time || b.activating || 0));
+  document.getElementById('bootBars').innerHTML = items.map(b => {
+    const ms  = b.time || b.activating || 0;
+    const pct = (ms / max * 70 + 5);
+    const col = ms > 1000 ? 'var(--red)' : ms > 300 ? 'var(--yellow)' : 'var(--green)';
+    const nm  = (b.name || b.unit || '').replace('.service', '');
+    return `<div class="boot-row">
+      <div class="boot-name">${nm}</div>
+      <div class="boot-wrap"><div class="boot-fill" style="width:${pct}%;background:${col};left:${(100-pct)/4}%">${ms > 300 ? nm : ''}</div></div>
+      <div class="boot-ms" style="color:${col}">${ms}ms</div>
+    </div>`;
+  }).join('') || '<div class="loading" style="color:var(--muted)">No blame data</div>';
+
+  // time summary
+  const t = d.times || {};
+  document.getElementById('bootTimes').innerHTML = Object.entries(t).map(([k,v]) =>
+    `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)"><span style="color:var(--muted)">${k}</span><span style="color:var(--green)">${v}s</span></div>`
+  ).join('') || `<div style="color:var(--muted);font-size:11px">${d.summary || ''}</div>`;
+}
+
+// ── INIT ─────────────────────────────────────
+// Start metrics polling
+loadMetrics();
+metricsInterval = setInterval(loadMetrics, 3000);
+
+// Start SSE when on logs page
+connectSSE(); // pre-connect for overview feed
+</script>
+</body>
+</html>
