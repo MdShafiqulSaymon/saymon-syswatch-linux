@@ -81,4 +81,22 @@ async function getServiceLogs(name, lines = 100) {
     .filter(Boolean);
 }
 
-module.exports = { listServices, getServiceInfo, controlService, getServiceLogs };
+// ── lightweight list: name + activeState only ─────
+// Equivalent: systemctl list-units --type=service --all --output=json
+async function listServiceNames() {
+  try {
+    const { stdout } = await execP(
+      'systemctl list-units --type=service --all --output=json --no-pager 2>/dev/null'
+    );
+    const units = JSON.parse(stdout);
+    return units.map(u => ({
+      name:  u.unit.replace(/\.service$/, ''),
+      state: u.active,   // 'active' | 'inactive' | 'failed' | 'activating'
+      sub:   u.sub,      // 'running' | 'dead' | 'exited' | ...
+    })).sort((a, b) => a.name.localeCompare(b.name));
+  } catch {
+    return [];
+  }
+}
+
+module.exports = { listServices, listServiceNames, getServiceInfo, controlService, getServiceLogs };

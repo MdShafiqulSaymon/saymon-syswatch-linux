@@ -51,6 +51,13 @@ function registerRoutes(app, { requireAuth }) {
     res.json(list);
   }));
 
+  // GET /api/services/names  — lightweight: name + activeState only (for sidebar/dropdowns)
+  // Must be defined BEFORE /:name to avoid Express matching "names" as a param
+  app.get('/api/services/names', requireAuth, wrap(async (req, res) => {
+    const list = await services.listServiceNames();
+    res.json(list);
+  }));
+
   // GET /api/services/:name  — single service info
   app.get('/api/services/:name', requireAuth, wrap(async (req, res) => {
     const info = await services.getServiceInfo(req.params.name);

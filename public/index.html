@@ -190,10 +190,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--mono);font-size:13
     </div>
     <div class="nav-group">
       <div class="nav-group-label">Quick Units</div>
-      <div class="nav-item" onclick="gotoLogs('nginx')"><div class="sdot dg"></div>nginx</div>
-      <div class="nav-item" onclick="gotoLogs('sshd')"><div class="sdot dg"></div>sshd</div>
-      <div class="nav-item" onclick="gotoLogs('docker')"><div class="sdot dy"></div>docker</div>
-      <div class="nav-item" onclick="gotoLogs('postgresql')"><div class="sdot dy"></div>postgresql</div>
+      <div id="quickUnitsNav"><div style="padding:8px 16px;font-size:11px;color:var(--muted)">loading...</div></div>
     </div>
     <div style="padding:16px;margin-top:auto;border-top:1px solid var(--border)">
       <div style="font-size:10px;color:var(--muted);line-height:1.8">
@@ -326,10 +323,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--mono);font-size:13
                 <input class="inp inp-grow" type="text" id="logSearch" placeholder="grep pattern..." oninput="applyLogFilter()">
                 <select class="inp" id="logUnit" onchange="reconnectSSE()">
                   <option value="">All units</option>
-                  <option value="nginx">nginx</option>
-                  <option value="sshd">sshd</option>
-                  <option value="docker">docker</option>
-                  <option value="postgresql">postgresql</option>
                   <option value="kernel">kernel</option>
                 </select>
                 <select class="inp" id="logPrio" onchange="reconnectSSE()">
@@ -350,9 +343,12 @@ body{background:var(--bg);color:var(--text);font-family:var(--mono);font-size:13
         </div>
         <div class="learn-panel" id="lp-logs">
           <div class="lp-inner">
-            <div class="ls"><div class="ls-title">≡ journalctl Commands</div>
+            <div class="ls">
+              <div class="ls-title">≡ journalctl Commands</div>
+              <!-- Dynamic: updates when unit/priority filter changes -->
+              <div id="liveCmdBlock"></div>
               <div class="cmd-block"><div class="cmd-hdr"><span class="cmd-lbl">Follow live</span><span class="cmd-copy" onclick="cc(this,'journalctl -f')">copy</span></div><div class="cmd-code">journalctl -f</div><div class="cmd-expl">Like <code class="ic">tail -f</code> for systemd journal. Streams new entries in real time. Ctrl+C to stop.</div><div class="flags"><div class="flag"><span class="fn">-f</span><span class="fd">Follow — keep streaming new entries</span></div><div class="flag"><span class="fn">-u nginx</span><span class="fd">Filter to only nginx.service</span></div><div class="flag"><span class="fn">-p err</span><span class="fd">Priority: emerg/alert/crit/err/warning/notice/info/debug</span></div><div class="flag"><span class="fn">-n 100</span><span class="fd">Show last N lines only</span></div><div class="flag"><span class="fn">--since "1h ago"</span><span class="fd">Time filter — relative or absolute</span></div><div class="flag"><span class="fn">-o json</span><span class="fd">JSON output — one JSON object per line, perfect for Node.js</span></div><div class="flag"><span class="fn">-b</span><span class="fd">Only this boot's logs</span></div><div class="flag"><span class="fn">-b -1</span><span class="fd">Previous boot's logs</span></div></div></div>
-              <div class="cmd-block"><div class="cmd-hdr"><span class="cmd-lbl">Search logs</span><span class="cmd-copy" onclick="cc(this,\"journalctl -u nginx --since today -o json | grep 'ERROR'\")">copy</span></div><div class="cmd-code">journalctl -u nginx --since today -o json | grep ERROR</div><div class="cmd-expl">With <code class="ic">-o json</code> each entry is one line — grep produces clean JSON objects. Pipe to <code class="ic">jq</code> for structured filtering.</div></div>
+              <div class="cmd-block"><div class="cmd-hdr"><span class="cmd-lbl">Search logs</span><span class="cmd-copy" id="learnSearchCopy" onclick="cc(this, learnCurrentUnit() ? 'journalctl -u '+learnCurrentUnit()+' --since today -o json | grep ERROR' : 'journalctl --since today -o json | grep ERROR')">copy</span></div><div class="cmd-code" id="learnSearchCmd">journalctl --since today -o json | grep ERROR</div><div class="cmd-expl">With <code class="ic">-o json</code> each entry is one line — grep produces clean JSON objects. Pipe to <code class="ic">jq</code> for structured filtering.</div></div>
               <div class="cmd-block"><div class="cmd-hdr"><span class="cmd-lbl">Disk usage</span><span class="cmd-copy" onclick="cc(this,'journalctl --disk-usage')">copy</span></div><div class="cmd-code">journalctl --disk-usage</div><div class="cmd-expl">See how much disk the journal uses. Rotate/trim: <code class="ic">journalctl --vacuum-size=500M</code> or <code class="ic">--vacuum-time=7d</code></div></div>
               <div class="node-block"><div class="node-hdr">⬡ Node.js SSE stream</div><div class="node-code"><span class="cm">// Server-Sent Events: real-time log stream</span>
 app.<span class="fn2">get</span>(<span class="str">'/api/logs/stream'</span>, (req, res) => {
@@ -486,15 +482,127 @@ function goto(id) {
   if (id === 'services')  loadSvcs();
   if (id === 'processes') loadProcs();
   if (id === 'boot')      loadBoot();
-  if (id === 'logs')      connectSSE();
+  if (id === 'logs')      { loadQuickUnits(); connectSSE(); }
 }
 
 function gotoLogs(unit) {
   goto('logs');
   setTimeout(() => {
     const sel = document.getElementById('logUnit');
-    if (sel) { sel.value = unit; reconnectSSE(); }
+    if (sel) {
+      // ensure option exists (may have been added dynamically)
+      if (unit && ![...sel.options].some(o => o.value === unit)) {
+        const opt = document.createElement('option');
+        opt.value = opt.textContent = unit;
+        sel.appendChild(opt);
+      }
+      sel.value = unit;
+      reconnectSSE();
+    }
   }, 100);
+}
+
+// ── load real service names from API ─────────
+let _serviceNames = [];
+
+async function loadQuickUnits() {
+  try {
+    const r = await fetch('/api/services/names', { credentials: 'include' });
+    if (!r.ok) return;
+    const units = await r.json();
+    _serviceNames = units;
+
+    // ── populate sidebar Quick Units ──────────
+    const nav = document.getElementById('quickUnitsNav');
+    if (nav) {
+      const active = units.filter(u => u.state === 'active' || u.sub === 'running');
+      nav.innerHTML = active.length === 0
+        ? '<div style="padding:8px 16px;font-size:11px;color:var(--muted)">no active units</div>'
+        : active.map(u => {
+            const dotCls = u.sub === 'running' ? 'dg'
+                         : u.state === 'failed'  ? 'dr' : 'dy';
+            return `<div class="nav-item" onclick="gotoLogs('${u.name}')">
+                      <div class="sdot ${dotCls}"></div>${u.name}
+                    </div>`;
+          }).join('');
+    }
+
+    // ── populate logUnit dropdown ─────────────
+    const sel = document.getElementById('logUnit');
+    if (sel) {
+      // keep "All units" + "kernel", remove old dynamic options
+      [...sel.options].forEach(o => {
+        if (o.value !== '' && o.value !== 'kernel') o.remove();
+      });
+      // insert active units alphabetically after "All units"
+      const kernelOpt = sel.querySelector('option[value="kernel"]');
+      units.forEach(u => {
+        const opt = document.createElement('option');
+        opt.value = opt.textContent = u.name;
+        sel.insertBefore(opt, kernelOpt);
+      });
+    }
+  } catch (e) {
+    console.warn('loadQuickUnits failed', e);
+  }
+}
+
+// ── helper: current selected unit ────────────
+function learnCurrentUnit() {
+  return document.getElementById('logUnit')?.value || '';
+}
+
+// ── update learn panel live command block ─────
+function updateLearnCmd() {
+  const unit = learnCurrentUnit();
+  const prio = document.getElementById('logPrio')?.value || '';
+
+  // Build the exact command parts
+  const parts = ['journalctl', '-f', '-o', 'json'];
+  const flags  = [];
+
+  if (unit) {
+    parts.splice(1, 0, '-u', unit);
+    flags.push([`-u ${unit}`, `Filter journal to <strong>${unit}.service</strong> only`]);
+  }
+  if (prio) {
+    parts.splice(unit ? 3 : 1, 0, '-p', prio);
+    flags.push([`-p ${prio}`, `Show only <em>${prio}</em> priority and more severe (lower number = more severe)`]);
+  }
+  flags.push(['-f',      'Follow — keep streaming new entries in real time']);
+  flags.push(['-o json', 'Output as JSON — one object per line, easy to parse with Node.js or <code class="ic">jq</code>']);
+
+  const cmd = parts.join(' ');
+
+  // Update footer status bar
+  const cmdEl = document.getElementById('logCmd');
+  if (cmdEl) cmdEl.textContent = cmd;
+
+  // Update learn panel live block
+  const block = document.getElementById('liveCmdBlock');
+  if (!block) return;
+
+  const flagsHtml = flags.map(([f, d]) =>
+    `<div class="flag"><span class="fn">${f}</span><span class="fd">${d}</span></div>`
+  ).join('');
+
+  block.innerHTML = `
+    <div class="cmd-block" style="border-color:rgba(63,185,80,.4);margin-bottom:14px">
+      <div class="cmd-hdr" style="background:rgba(63,185,80,.08);border-bottom-color:rgba(63,185,80,.25)">
+        <span class="cmd-lbl" style="color:var(--green)">▶ RUNNING NOW</span>
+        <span class="cmd-copy" onclick="cc(this,'${cmd}')">copy</span>
+      </div>
+      <div class="cmd-code" style="color:var(--green);font-size:13px">${cmd}</div>
+      <div class="flags">${flagsHtml}</div>
+    </div>`;
+
+  // Update the "Search logs" example to use current unit
+  const searchCmd = document.getElementById('learnSearchCmd');
+  if (searchCmd) {
+    searchCmd.textContent = unit
+      ? `journalctl -u ${unit} --since today -o json | grep ERROR`
+      : `journalctl --since today -o json | grep ERROR`;
+  }
 }
 
 // ── learn panel ───────────────────────────────
@@ -519,10 +627,13 @@ async function logout() {
   window.location.href = '/login';
 }
 
-// Check auth on load
+// Check auth on load, then kick off unit list
 fetch('/auth/status', { credentials: 'include' })
   .then(r => r.json())
-  .then(d => { if (d.authEnabled && !d.authenticated) window.location.href = '/login'; });
+  .then(d => {
+    if (d.authEnabled && !d.authenticated) { window.location.href = '/login'; return; }
+    loadQuickUnits();
+  });
 
 // ── METRICS ───────────────────────────────────
 async function loadMetrics() {
@@ -703,12 +814,8 @@ function connectSSE() {
   if (unit) url += '&unit=' + unit;
   if (prio) url += '&priority=' + prio;
 
-  // update command hint
-  let cmd = 'journalctl -f -o json';
-  if (unit) cmd += ' -u ' + unit;
-  if (prio) cmd += ' -p ' + prio;
-  const cmdEl = document.getElementById('logCmd');
-  if (cmdEl) cmdEl.textContent = cmd;
+  // update command display + learn panel
+  updateLearnCmd();
 
   sseConn = new EventSource(url);
 

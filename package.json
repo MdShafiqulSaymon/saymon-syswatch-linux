@@ -1,10 +1,10 @@
 {
   "name": "saymon-syswatch-linux",
-  "version": "1.0.2",
+  "version": "1.0.5",
   "description": "Linux system monitor & learning dashboard — HTTP/HTTPS, journal logs, services, processes",
   "main": "src/server.js",
   "bin": {
-    "syswatch": "./bin/syswatch.js"
+    "syswatch": "bin/syswatch.js"
   },
   "scripts": {
     "start": "node src/server.js",
