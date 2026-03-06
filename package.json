@@ -11,9 +11,18 @@
     "dev": "node src/server.js --dev",
     "setup-https": "node bin/gen-cert.js"
   },
+  "files": [
+    "bin/",
+    "src/",
+    "public/",
+    "syswatch.config.example.json",
+    "README.md"
+  ],
   "keywords": ["linux", "monitor", "systemd", "journalctl", "sysadmin", "dashboard", "learning"],
   "author": "Saymon",
   "license": "MIT",
+  "preferGlobal": true,
+  "os": ["linux"],
   "dependencies": {
     "express": "^4.18.2",
     "cors": "^2.8.5",

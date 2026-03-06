@@ -98,12 +98,9 @@ function banner() {
 function afterBanner() {
   console.log(`
   📖  Learn mode:  ${config.learnMode ? 'ON  (toggle in UI)' : 'OFF'}
-  🔐  Auth:        ${config.authEnabled ? 'ON  (set password on first login)' : 'OFF (--no-auth)'}
+  🔐  Auth:        ${config.authEnabled ? 'ON' : 'OFF (--no-auth)'}
   🖥  Host:        ${config.host}
   `);
-  if (config.authEnabled && !config.passwordHash) {
-    console.log('  ℹ  No password set yet — you will create one on first login.\n');
-  }
 }
 
 function displayHost() {

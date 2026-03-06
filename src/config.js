@@ -3,13 +3,26 @@
 //  Reads config from (priority order):
 //    1. CLI arguments   (--port 9000)
 //    2. ENV variables   (SYSWATCH_PORT=9000)
-//    3. syswatch.config.json in cwd  (if exists)
+//    3. Config file at fixed path (see CONFIG_PATH below)
 //    4. Defaults below
 // ─────────────────────────────────────────────────────
 'use strict';
 
 const fs   = require('fs');
 const path = require('path');
+const os   = require('os');
+
+// ── fixed config path (same regardless of cwd) ────
+// root/sudo → /etc/syswatch/   non-root → ~/.config/syswatch/
+function getConfigDir() {
+  try {
+    if (process.getuid && process.getuid() === 0) return '/etc/syswatch';
+  } catch {}
+  return path.join(os.homedir(), '.config', 'syswatch');
+}
+
+const CONFIG_DIR  = process.env.SYSWATCH_CONFIG_DIR || getConfigDir();
+const CONFIG_PATH = path.join(CONFIG_DIR, 'syswatch.config.json');
 
 // ── parse CLI args ─────────────────────────────────
 const argv = process.argv.slice(2);
@@ -21,10 +34,9 @@ const flag = (f) => argv.includes(f);
 
 // ── load optional config file ──────────────────────
 let fileConf = {};
-const cfgPath = path.join(process.cwd(), 'syswatch.config.json');
-if (fs.existsSync(cfgPath)) {
-  try { fileConf = JSON.parse(fs.readFileSync(cfgPath, 'utf8')); }
-  catch (e) { console.warn('[syswatch] Warning: invalid syswatch.config.json'); }
+if (fs.existsSync(CONFIG_PATH)) {
+  try { fileConf = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8')); }
+  catch (e) { console.warn('[syswatch] Warning: invalid syswatch.config.json at ' + CONFIG_PATH); }
 }
 
 // ── merge config ───────────────────────────────────
@@ -46,8 +58,8 @@ const config = {
   sessionHours: fileConf.sessionHours || 8,
 
   // TLS cert paths (used when httpsEnabled)
-  certPath: fileConf.certPath || path.join(__dirname, '..', 'certs', 'cert.pem'),
-  keyPath:  fileConf.keyPath  || path.join(__dirname, '..', 'certs', 'key.pem'),
+  certPath: fileConf.certPath || path.join(CONFIG_DIR, 'certs', 'cert.pem'),
+  keyPath:  fileConf.keyPath  || path.join(CONFIG_DIR, 'certs', 'key.pem'),
 
   // Features
   learnMode:  fileConf.learnMode  !== false,   // default on
@@ -61,5 +73,8 @@ function _randomSecret() {
   try { return require('crypto').randomBytes(32).toString('hex'); }
   catch { return 'syswatch-change-this-secret'; }
 }
+
+config.CONFIG_PATH = CONFIG_PATH;
+config.CONFIG_DIR  = CONFIG_DIR;
 
 module.exports = config;

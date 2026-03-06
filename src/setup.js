@@ -1,8 +1,8 @@
 // ─────────────────────────────────────────────────────
 //  src/setup.js
 //  First-run interactive setup wizard.
-//  Runs automatically if syswatch.config.json is missing.
-//  Also callable via: npx syswatch --setup
+//  Runs automatically if config is missing.
+//  Also callable via: syswatch --setup
 // ─────────────────────────────────────────────────────
 'use strict';
 
@@ -10,35 +10,57 @@ const fs       = require('fs');
 const path     = require('path');
 const readline = require('readline');
 const crypto   = require('crypto');
+const os       = require('os');
 
-const CONFIG_PATH = path.join(process.cwd(), 'syswatch.config.json');
+// ── config path (mirrors src/config.js logic) ─────
+function getConfigDir() {
+  try {
+    if (process.getuid && process.getuid() === 0) return '/etc/syswatch';
+  } catch {}
+  return path.join(os.homedir(), '.config', 'syswatch');
+}
+
+const CONFIG_DIR  = process.env.SYSWATCH_CONFIG_DIR || getConfigDir();
+const CONFIG_PATH = path.join(CONFIG_DIR, 'syswatch.config.json');
 
 // ── helpers ───────────────────────────────────────
 function ask(rl, question) {
   return new Promise(resolve => rl.question(question, resolve));
 }
 
+// Hide password input — uses raw stdin mode WITHOUT creating a readline interface
+// so there is no conflict with the rl instance used for other questions.
 function askHidden(question) {
-  // hide password input on linux/mac terminals
   return new Promise(resolve => {
     process.stdout.write(question);
-    const stdin = process.openStdin();
-    // try to hide input
-    try { process.stdin.setRawMode(true); } catch {}
+
+    const isTTY = process.stdin.isTTY;
+    if (isTTY) {
+      try { process.stdin.setRawMode(true); } catch {}
+    }
+
     let input = '';
-    process.stdin.resume();
-    process.stdin.setEncoding('utf8');
+
     const onData = (ch) => {
-      ch = ch + '';
-      if (ch === '\n' || ch === '\r' || ch === '\u0004') {
-        try { process.stdin.setRawMode(false); } catch {}
-        process.stdin.pause();
+      const s = ch.toString();
+
+      if (s === '\n' || s === '\r' || s === '\u0004') {
+        // Enter / Ctrl-D → done
+        if (isTTY) {
+          try { process.stdin.setRawMode(false); } catch {}
+        }
         process.stdin.removeListener('data', onData);
+        process.stdin.pause();
         process.stdout.write('\n');
         resolve(input);
-      } else if (ch === '\u0003') {
-        process.exit();
-      } else if (ch === '\u007f' || ch === '\b') {
+
+      } else if (s === '\u0003') {
+        // Ctrl-C → exit
+        process.stdout.write('\n');
+        process.exit(0);
+
+      } else if (s === '\u007f' || s === '\b') {
+        // Backspace
         if (input.length > 0) {
           input = input.slice(0, -1);
           process.stdout.clearLine(0);
@@ -46,10 +68,13 @@ function askHidden(question) {
           process.stdout.write(question + '*'.repeat(input.length));
         }
       } else {
-        input += ch;
+        input += s;
         process.stdout.write('*');
       }
     };
+
+    process.stdin.resume();
+    process.stdin.setEncoding('utf8');
     process.stdin.on('data', onData);
   });
 }
@@ -86,27 +111,20 @@ async function run(autoMode = false) {
   ]);
   console.log();
 
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
-
   const config = {};
 
-  // ── Step 1: Password ────────────────────────────
+  // ── Step 1: Password (raw stdin — no readline yet) ─
   print('Step 1/4 — Set your login password', 'bold');
   print('  (This protects your dashboard from others on the network)\n', 'dim');
 
   let password = '';
-  let confirmed = '';
-
   while (true) {
-    password  = await askHidden('  Enter password: ');
+    password         = await askHidden('  Enter password: ');
     if (password.length < 4) {
       print('  ✗ Password must be at least 4 characters. Try again.\n', 'red');
       continue;
     }
-    confirmed = await askHidden('  Confirm password: ');
+    const confirmed  = await askHidden('  Confirm password: ');
     if (password !== confirmed) {
       print('  ✗ Passwords do not match. Try again.\n', 'red');
       continue;
@@ -118,6 +136,12 @@ async function run(autoMode = false) {
   const bcrypt = require('bcrypt');
   config.passwordHash = await bcrypt.hash(password, 10);
   print('  ✓ Password set!\n', 'green');
+
+  // ── readline for remaining non-secret questions ──
+  const rl = readline.createInterface({
+    input:  process.stdin,
+    output: process.stdout,
+  });
 
   // ── Step 2: Port ────────────────────────────────
   print('Step 2/4 — HTTP Port', 'bold');
@@ -147,15 +171,18 @@ async function run(autoMode = false) {
   config.httpsPort = 8443;
   print(`  ✓ HTTPS: ${config.https ? 'Enabled on port 8443' : 'Disabled'}\n`, 'green');
 
-  // ── Generate JWT secret ─────────────────────────
-  config.jwtSecret = crypto.randomBytes(32).toString('hex');
+  config.jwtSecret    = crypto.randomBytes(32).toString('hex');
   config.sessionHours = 8;
-  config.learnMode = true;
-  config.maxLogLines = 200;
+  config.learnMode    = true;
+  config.maxLogLines  = 200;
 
   rl.close();
 
   // ── Write config file ───────────────────────────
+  if (!fs.existsSync(CONFIG_DIR)) {
+    fs.mkdirSync(CONFIG_DIR, { recursive: true });
+  }
+
   const finalConfig = {
     _note: "Auto-generated by syswatch --setup. Do NOT commit this file to git.",
     host:         config.host,
@@ -177,23 +204,19 @@ async function run(autoMode = false) {
   box([
     '\x1b[1m\x1b[32m  ✓ Setup complete!\x1b[0m',
     '',
-    `  Config saved → syswatch.config.json`,
+    `  Config saved → ${CONFIG_PATH}`,
     '',
     `  🌐  http://${config.host === '0.0.0.0' ? 'YOUR_IP' : 'localhost'}:${config.port}`,
     config.https ? `  🔒  https://${config.host === '0.0.0.0' ? 'YOUR_IP' : 'localhost'}:${config.httpsPort}` : '',
     '',
-    '  Start the server:',
-    '    sudo node src/server.js',
-    '',
-    '  Or if installed globally:',
-    '    sudo syswatch',
+    '  To start:  sudo syswatch',
+    '  Re-setup:  sudo syswatch --setup',
   ].filter(l => l !== ''));
   console.log();
 
   if (autoMode) {
-    // auto-start after setup
     print('  Starting SysWatch now...\n', 'cyan');
-    require('./server');
+    // server is already chained via .then(startServer) in server.js
   } else {
     process.exit(0);
   }
@@ -202,10 +225,10 @@ async function run(autoMode = false) {
 // ── check if config exists, if not → auto-run setup ─
 function checkAndSetup() {
   if (!fs.existsSync(CONFIG_PATH)) {
-    print('\n  ⚠  No syswatch.config.json found — running first-time setup...\n', 'yellow');
-    return run(true); // autoMode = true means start server after setup
+    print(`\n  ⚠  No config found at ${CONFIG_PATH} — running first-time setup...\n`, 'yellow');
+    return run(true);
   }
   return Promise.resolve();
 }
 
-module.exports = { run, checkAndSetup };
+module.exports = { run, checkAndSetup, CONFIG_PATH, CONFIG_DIR };

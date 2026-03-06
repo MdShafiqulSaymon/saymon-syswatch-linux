@@ -31,9 +31,9 @@
          onkeydown="if(event.key==='Enter')login()">
   <button onclick="login()">Sign In →</button>
   <div class="err" id="err">Invalid password. Try again.</div>
-  <div class="note" id="note">
-    First time? Enter any password — it becomes your login for this session.<br>
-    To persist it, add the bcrypt hash to <code>syswatch.config.json</code>.
+  <div class="note">
+    Enter the password you set during <code>syswatch --setup</code>.<br>
+    To re-configure, run <code>sudo syswatch --setup</code> in the terminal.
   </div>
 </div>
 <script>
@@ -51,11 +51,8 @@ async function login() {
     document.getElementById('pw').focus();
   }
 }
-// check if auth is even enabled
 fetch('/auth/status').then(r=>r.json()).then(d=>{
   if (!d.authEnabled) window.location.href = '/';
-  if (d.passwordHash === null)
-    document.getElementById('note').style.display='block';
 });
 </script>
 </body>

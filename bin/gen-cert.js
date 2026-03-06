@@ -3,7 +3,7 @@
 //  bin/gen-cert.js
 //  Generates a self-signed TLS cert for HTTPS mode.
 //  Uses openssl — must be installed on the system.
-//  Saves to: certs/key.pem + certs/cert.pem
+//  Saves to: <configDir>/certs/key.pem + cert.pem
 // ─────────────────────────────────────────────────────
 'use strict';
 
@@ -11,7 +11,8 @@ const { execSync } = require('child_process');
 const fs   = require('fs');
 const path = require('path');
 
-const certsDir = path.join(__dirname, '..', 'certs');
+const { CONFIG_DIR } = require('../src/config');
+const certsDir = path.join(CONFIG_DIR, 'certs');
 
 function generateCert() {
   if (!fs.existsSync(certsDir)) fs.mkdirSync(certsDir, { recursive: true });
@@ -33,7 +34,7 @@ function generateCert() {
        -subj "/CN=syswatch/O=SysWatch/C=US"`,
       { stdio: 'pipe' }
     );
-    console.log('✓ Certificates saved to certs/key.pem + certs/cert.pem');
+    console.log(`✓ Certificates saved to ${certsDir}/`);
     console.log('  Note: Browser will warn "Not secure" for self-signed certs — that is normal.');
     console.log('  For production, replace with Let\'s Encrypt certs.');
   } catch (e) {

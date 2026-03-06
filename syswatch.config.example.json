@@ -14,6 +14,6 @@
   "learnMode": true,
   "maxLogLines": 200,
 
-  "certPath": "./certs/cert.pem",
-  "keyPath":  "./certs/key.pem"
+  "certPath": "/etc/syswatch/certs/cert.pem",
+  "keyPath":  "/etc/syswatch/certs/key.pem"
 }
