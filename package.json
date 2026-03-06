@@ -1,6 +1,6 @@
 {
   "name": "saymon-syswatch-linux",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Linux system monitor & learning dashboard — HTTP/HTTPS, journal logs, services, processes",
   "main": "src/server.js",
   "bin": {
@@ -18,11 +18,21 @@
     "syswatch.config.example.json",
     "README.md"
   ],
-  "keywords": ["linux", "monitor", "systemd", "journalctl", "sysadmin", "dashboard", "learning"],
+  "keywords": [
+    "linux",
+    "monitor",
+    "systemd",
+    "journalctl",
+    "sysadmin",
+    "dashboard",
+    "learning"
+  ],
   "author": "Saymon",
   "license": "MIT",
   "preferGlobal": true,
-  "os": ["linux"],
+  "os": [
+    "linux"
+  ],
   "dependencies": {
     "express": "^4.18.2",
     "cors": "^2.8.5",
