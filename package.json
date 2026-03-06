@@ -1,5 +1,5 @@
 {
-  "name": "syswatch",
+  "name": "saymon-syswatch-linux",
   "version": "1.0.0",
   "description": "Linux system monitor & learning dashboard — HTTP/HTTPS, journal logs, services, processes",
   "main": "src/server.js",
@@ -11,8 +11,8 @@
     "dev": "node src/server.js --dev",
     "setup-https": "node bin/gen-cert.js"
   },
-  "keywords": ["linux", "monitor", "systemd", "journalctl", "sysadmin", "dashboard"],
-  "author": "",
+  "keywords": ["linux", "monitor", "systemd", "journalctl", "sysadmin", "dashboard", "learning"],
+  "author": "Saymon",
   "license": "MIT",
   "dependencies": {
     "express": "^4.18.2",
