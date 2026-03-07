@@ -371,6 +371,158 @@ es.<span class="fn2">onmessage</span> = e => {
 };</div></div>
               <div class="note"><strong>💡 SSE vs WebSocket:</strong> SSE is one-way (server→browser), auto-reconnects, and works over plain HTTP. Perfect for log streaming. Use WebSockets only if you need bidirectional messaging.</div>
             </div>
+
+            <!-- ══ BANGLISH GUIDE ══ -->
+            <div class="ls" style="margin-top:8px">
+              <div class="ls-title" style="cursor:pointer;user-select:none" onclick="toggleBanglish()">
+                <span>📖 বাংলা গাইড — journalctl</span>
+                <span id="banglishArrow" style="margin-left:auto;font-size:11px;color:var(--muted)">▼ show</span>
+              </div>
+              <div id="banglishGuide" style="display:none">
+
+                <!-- ─── WHAT IS ─── -->
+                <div style="background:rgba(188,140,255,.05);border:1px solid rgba(188,140,255,.18);border-radius:7px;padding:14px;margin-bottom:12px">
+                  <div style="font-size:11px;font-weight:600;color:var(--purple);margin-bottom:10px;text-transform:uppercase;letter-spacing:.08em">journalctl কী?</div>
+                  <p style="font-size:12px;color:var(--text);line-height:1.9;margin-bottom:8px">
+                    <code class="ic">journalctl</code> হলো <strong style="color:var(--purple)">systemd</strong>-এর official log reading tool।
+                    তোমার Linux system এ যা কিছু হচ্ছে — service start হচ্ছে, error আসছে,
+                    kernel কিছু বলছে — সব কিছু <code class="ic">systemd-journald</code> নামের
+                    একটা daemon collect করে রাখে। আর <code class="ic">journalctl</code> সেই
+                    data পড়ার CLI tool।
+                  </p>
+                  <p style="font-size:12px;color:var(--muted);line-height:1.9">
+                    পুরনো system এ <code class="ic">/var/log/syslog</code> ছিল plain text file।
+                    কিন্তু journald <strong style="color:var(--yellow)">binary format</strong> এ store করে —
+                    faster search, structured metadata, automatically indexed।
+                    প্রতিটা log entry একটা JSON object এর মতো — timestamp, PID, unit name,
+                    priority সব আলাদা field হিসেবে থাকে।
+                  </p>
+                </div>
+
+                <!-- ─── ARCHITECTURE ─── -->
+                <div style="background:rgba(57,208,216,.05);border:1px solid rgba(57,208,216,.18);border-radius:7px;padding:14px;margin-bottom:12px">
+                  <div style="font-size:11px;font-weight:600;color:var(--cyan);margin-bottom:10px;text-transform:uppercase;letter-spacing:.08em">Architecture — কীভাবে কাজ করে?</div>
+                  <div style="background:#060c0d;border-radius:5px;padding:12px;font-size:11px;color:var(--cyan);line-height:2;margin-bottom:10px;font-family:var(--mono)">
+<span style="color:var(--muted)">╔══════════════════════════════════════╗</span>
+<span style="color:var(--muted)">║</span>  <span style="color:var(--yellow)">[Kernel]</span>  <span style="color:var(--green)">[Services]</span>  <span style="color:var(--blue)">[Apps]</span>        <span style="color:var(--muted)">║</span>
+<span style="color:var(--muted)">║</span>      ↓           ↓          ↓         <span style="color:var(--muted)">║</span>
+<span style="color:var(--muted)">║</span>  <span style="color:var(--purple)">systemd-journald</span>  ← সব এখানে আসে  <span style="color:var(--muted)">║</span>
+<span style="color:var(--muted)">║</span>         ↓                           <span style="color:var(--muted)">║</span>
+<span style="color:var(--muted)">║</span>  <span style="color:var(--cyan)">/var/log/journal/</span>  (binary files)  <span style="color:var(--muted)">║</span>
+<span style="color:var(--muted)">║</span>         ↓                           <span style="color:var(--muted)">║</span>
+<span style="color:var(--muted)">║</span>  <span style="color:var(--green)">journalctl</span> ← তুমি এটা দিয়ে পড়ো   <span style="color:var(--muted)">║</span>
+<span style="color:var(--muted)">╚══════════════════════════════════════╝</span>
+                  </div>
+                  <div style="font-size:12px;color:var(--text);line-height:1.9">
+                    <div style="margin-bottom:6px">
+                      <span style="color:var(--yellow)">① Kernel logs</span> — <code class="ic">/dev/kmsg</code> থেকে journald নেয়।
+                      Hardware error, driver issue এখানে আসে।
+                    </div>
+                    <div style="margin-bottom:6px">
+                      <span style="color:var(--green)">② Service logs</span> — nginx, sshd এর মতো service এর
+                      <code class="ic">stdout</code> / <code class="ic">stderr</code> সরাসরি journald এ যায়।
+                      কোনো file লেখার দরকার নেই।
+                    </div>
+                    <div style="margin-bottom:6px">
+                      <span style="color:var(--blue)">③ App logs</span> — যেকোনো program <code class="ic">sd_journal_send()</code>
+                      বা <code class="ic">syslog()</code> দিয়ে log পাঠাতে পারে।
+                    </div>
+                    <div>
+                      <span style="color:var(--purple)">④ journald</span> সব collect করে binary journal files এ লেখে।
+                      <code class="ic">/var/log/journal/</code> — persistent (reboot এর পরেও থাকে)।
+                      <code class="ic">/run/log/journal/</code> — volatile (RAM এ, reboot এ মুছে যায়)।
+                    </div>
+                  </div>
+                </div>
+
+                <!-- ─── EACH LOG ENTRY ─── -->
+                <div style="background:rgba(88,166,255,.05);border:1px solid rgba(88,166,255,.18);border-radius:7px;padding:14px;margin-bottom:12px">
+                  <div style="font-size:11px;font-weight:600;color:var(--blue);margin-bottom:10px;text-transform:uppercase;letter-spacing:.08em">একটা Log Entry তে কী থাকে?</div>
+                  <p style="font-size:12px;color:var(--muted);line-height:1.7;margin-bottom:8px">
+                    <code class="ic">-o json</code> দিলে প্রতিটা entry এরকম দেখায়:
+                  </p>
+                  <div style="background:#060a14;border-radius:5px;padding:11px;font-size:11px;color:#a0c4ff;line-height:1.9;font-family:var(--mono)">
+<span style="color:var(--muted)">{</span>
+  <span style="color:var(--green)">"MESSAGE"</span>: <span style="color:#99cc99">"Started nginx service"</span>,
+  <span style="color:var(--green)">"_SYSTEMD_UNIT"</span>: <span style="color:#99cc99">"nginx.service"</span>,
+  <span style="color:var(--green)">"PRIORITY"</span>: <span style="color:var(--orange)">"6"</span>,        <span style="color:var(--muted)">← info</span>
+  <span style="color:var(--green)">"_PID"</span>: <span style="color:var(--orange)">"1234"</span>,
+  <span style="color:var(--green)">"_HOSTNAME"</span>: <span style="color:#99cc99">"my-server"</span>,
+  <span style="color:var(--green)">"__REALTIME_TIMESTAMP"</span>: <span style="color:var(--orange)">"1741..."</span>  <span style="color:var(--muted)">← microseconds</span>
+<span style="color:var(--muted)">}</span>
+                  </div>
+                  <p style="font-size:12px;color:var(--text);line-height:1.9;margin-top:10px">
+                    SysWatch এই JSON parse করে <code class="ic">MESSAGE</code>, <code class="ic">_SYSTEMD_UNIT</code>,
+                    <code class="ic">PRIORITY</code> নিয়ে তোমাকে দেখায়। Raw journalctl output এর চেয়ে
+                    অনেক বেশি structured।
+                  </p>
+                </div>
+
+                <!-- ─── PRIORITY ─── -->
+                <div style="background:rgba(227,179,65,.05);border:1px solid rgba(227,179,65,.18);border-radius:7px;padding:14px;margin-bottom:12px">
+                  <div style="font-size:11px;font-weight:600;color:var(--yellow);margin-bottom:10px;text-transform:uppercase;letter-spacing:.08em">Priority Levels — কোনটা কতটা গুরুত্বপূর্ণ?</div>
+                  <div style="font-size:11.5px;line-height:2.1">
+                    <div><span style="color:var(--red);min-width:22px;display:inline-block;font-weight:600">0</span> <code class="ic">emerg</code>   — System crash হয়ে গেছে, কিছুই কাজ করছে না</div>
+                    <div><span style="color:var(--red);min-width:22px;display:inline-block;font-weight:600">1</span> <code class="ic">alert</code>   — এখনই action নিতে হবে</div>
+                    <div><span style="color:var(--red);min-width:22px;display:inline-block;font-weight:600">2</span> <code class="ic">crit</code>    — Critical failure (hardware/software)</div>
+                    <div><span style="color:var(--red);min-width:22px;display:inline-block;font-weight:600">3</span> <code class="ic">err</code>     — Error — <span style="color:var(--muted)">সবচেয়ে বেশি দেখবে, fix করতে হবে</span></div>
+                    <div><span style="color:var(--yellow);min-width:22px;display:inline-block;font-weight:600">4</span> <code class="ic">warning</code> — Warning — এখনই problem না, কিন্তু নজর রাখো</div>
+                    <div><span style="color:var(--yellow);min-width:22px;display:inline-block;font-weight:600">5</span> <code class="ic">notice</code>  — Normal কিন্তু noteworthy কিছু হয়েছে</div>
+                    <div><span style="color:var(--green);min-width:22px;display:inline-block;font-weight:600">6</span> <code class="ic">info</code>    — Normal operational messages</div>
+                    <div><span style="color:var(--muted);min-width:22px;display:inline-block;font-weight:600">7</span> <code class="ic">debug</code>   — Verbose debug info — সাধারণত filter করে রাখো</div>
+                  </div>
+                  <div class="note" style="margin-top:10px">
+                    <strong>💡 টিপস:</strong> <code class="ic">-p err</code> দিলে 0–3 (emerg, alert, crit, err) সব দেখায় — শুধু error না।
+                    জানো — lower number = বেশি severe। এটা syslog এর পুরনো convention।
+                  </div>
+                </div>
+
+                <!-- ─── HOW SYSWATCH USES IT ─── -->
+                <div style="background:rgba(63,185,80,.05);border:1px solid rgba(63,185,80,.18);border-radius:7px;padding:14px;margin-bottom:12px">
+                  <div style="font-size:11px;font-weight:600;color:var(--green);margin-bottom:10px;text-transform:uppercase;letter-spacing:.08em">SysWatch কীভাবে journalctl ব্যবহার করছে?</div>
+                  <div style="font-size:12px;color:var(--text);line-height:1.9;margin-bottom:10px">
+                    SysWatch Node.js এ <code class="ic">child_process.spawn()</code> দিয়ে journalctl
+                    চালায় এবং output কে browser এ real-time push করে। Flow টা এরকম:
+                  </div>
+                  <div style="background:#060c08;border-radius:5px;padding:11px;font-size:11px;color:var(--green);line-height:2;font-family:var(--mono);margin-bottom:10px">
+<span style="color:var(--muted)">journalctl -f -o json</span>   <span style="color:var(--muted)">← child process</span>
+       ↓
+<span style="color:var(--muted)">proc.stdout</span> (stream)       <span style="color:var(--muted)">← line by line JSON</span>
+       ↓
+<span style="color:var(--muted)">SSE event: data: {...}</span>    <span style="color:var(--muted)">← HTTP text/event-stream</span>
+       ↓
+<span style="color:var(--muted)">Browser EventSource</span>       <span style="color:var(--muted)">← auto reconnects</span>
+       ↓
+<span style="color:var(--muted)">DOM update</span>                <span style="color:var(--muted)">← তুমি screen এ দেখছো</span>
+                  </div>
+                  <div style="font-size:12px;color:var(--muted);line-height:1.9">
+                    Browser কখনো directly journalctl চালাতে পারে না — security issue।
+                    তাই Node.js server টা <strong style="color:var(--text)">trusted intermediary</strong> হিসেবে কাজ করছে।
+                    Unit বা priority filter change করলে — পুরনো connection বন্ধ করে,
+                    নতুন args দিয়ে আবার journalctl start হয়।
+                  </div>
+                </div>
+
+                <!-- ─── USEFUL COMMANDS ─── -->
+                <div style="background:rgba(240,136,62,.05);border:1px solid rgba(240,136,62,.18);border-radius:7px;padding:14px">
+                  <div style="font-size:11px;font-weight:600;color:var(--orange);margin-bottom:10px;text-transform:uppercase;letter-spacing:.08em">কাজের Commands — চট করে মনে রাখার জন্য</div>
+                  <div style="font-size:11.5px;line-height:2.2;color:var(--text)">
+                    <div><code class="ic" style="color:var(--cyan)">journalctl -f</code> — live stream, সব unit</div>
+                    <div><code class="ic" style="color:var(--cyan)">journalctl -u nginx -f</code> — শুধু nginx এর live logs</div>
+                    <div><code class="ic" style="color:var(--cyan)">journalctl -p err -f</code> — শুধু errors, live</div>
+                    <div><code class="ic" style="color:var(--cyan)">journalctl -b</code> — শুধু এই boot এর logs</div>
+                    <div><code class="ic" style="color:var(--cyan)">journalctl -b -1</code> — আগের boot এর logs</div>
+                    <div><code class="ic" style="color:var(--cyan)">journalctl --since "1h ago"</code> — শেষ ১ ঘন্টার logs</div>
+                    <div><code class="ic" style="color:var(--cyan)">journalctl --since today</code> — আজকের সব logs</div>
+                    <div><code class="ic" style="color:var(--cyan)">journalctl --disk-usage</code> — journal কতটুকু disk নিচ্ছে</div>
+                    <div><code class="ic" style="color:var(--cyan)">journalctl --vacuum-size=500M</code> — 500MB এর বেশি পুরনো logs মুছে দাও</div>
+                    <div><code class="ic" style="color:var(--cyan)">journalctl -o json | jq</code> — JSON parse করে সুন্দর করে দেখো</div>
+                  </div>
+                </div>
+
+              </div><!-- end banglishGuide -->
+            </div><!-- end ls -->
+
           </div>
         </div>
       </div>
@@ -603,6 +755,16 @@ function updateLearnCmd() {
       ? `journalctl -u ${unit} --since today -o json | grep ERROR`
       : `journalctl --since today -o json | grep ERROR`;
   }
+}
+
+// ── banglish guide toggle ─────────────────────
+function toggleBanglish() {
+  const guide = document.getElementById('banglishGuide');
+  const arrow = document.getElementById('banglishArrow');
+  if (!guide) return;
+  const isOpen = guide.style.display !== 'none';
+  guide.style.display = isOpen ? 'none' : 'block';
+  arrow.textContent = isOpen ? '▼ show' : '▲ hide';
 }
 
 // ── learn panel ───────────────────────────────
